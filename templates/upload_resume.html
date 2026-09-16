@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Upload Resume{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 550px; margin: 2rem auto;">
+    <h2>Upload Your Resume</h2>
+    <p style="color: #6b7280; margin-bottom: 1.5rem;">Upload a PDF or TXT file. We will extract your skills, experience, and education automatically.</p>
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label>Resume File (PDF or TXT)</label>
+            <input type="file" name="resume" accept=".pdf,.txt" required style="padding: 0.5rem;">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.8rem;">Upload and Parse</button>
+    </form>
+</div>
+{% endblock %}

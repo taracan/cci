@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h2>Admin Dashboard</h2>
+    <a href="{{ url_for('admin.upload_jd') }}" class="btn btn-primary">Upload New JD</a>
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <h3 style="margin-bottom: 0.5rem;">Job Descriptions</h3>
+        <p style="color: #6b7280; margin-bottom: 1rem;">{{ jds|selectattr('is_active')|list|length }} active JDs</p>
+    </div>
+    <div class="card">
+        <h3 style="margin-bottom: 0.5rem;">Candidates</h3>
+        <p style="color: #6b7280; margin-bottom: 1rem;">{{ candidates|length }} registered</p>
+    </div>
+</div>
+
+<div class="card">
+    <h3>All Job Descriptions</h3>
+    {% if not jds %}
+        <p style="color: #6b7280; padding: 1rem 0;">No JDs uploaded yet. Click "Upload New JD" to get started.</p>
+    {% else %}
+    <table>
+        <thead>
+            <tr>
+                <th>Role</th>
+                <th>Company</th>
+                <th>Location</th>
+                <th>Experience</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for jd in jds %}
+            <tr>
+                <td><strong>{{ jd.role_title }}</strong></td>
+                <td>{{ jd.company }}</td>
+                <td>{{ jd.location }}</td>
+                <td>{{ jd.experience_years }} yrs</td>
+                <td>
+                    {% if jd.is_active %}
+                        <span class="score-badge score-high">Active</span>
+                    {% else %}
+                        <span class="score-badge score-low">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('admin.candidates_for_jd', jd_id=jd.jd_id) }}" class="btn btn-success" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;">View Candidates</a>
+                    {% if jd.is_active %}
+                    <form method="POST" action="{{ url_for('admin.delete_jd', jd_id=jd.jd_id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-danger" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;">Deactivate</button>
+                    </form>
+                    {% else %}
+                    <form method="POST" action="{{ url_for('admin.reactivate_jd', jd_id=jd.jd_id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-success" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;">Reactivate</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3>Registered Candidates</h3>
+    {% if not candidates %}
+        <p style="color: #6b7280; padding: 1rem 0;">No candidates registered yet.</p>
+    {% else %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Target Role</th>
+                <th>Resume</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in candidates %}
+            <tr>
+                <td>{{ c.name }}</td>
+                <td>{{ c.email }}</td>
+                <td>{{ c.get('target_role', '-') }}</td>
+                <td>
+                    {% if c.get('resume_uploaded') %}
+                        <span class="score-badge score-high">Uploaded</span>
+                    {% else %}
+                        <span class="score-badge score-low">Pending</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}

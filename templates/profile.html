@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}My Profile{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h2>My Profile</h2>
+    <a href="{{ url_for('candidate.candidate_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+<div class="card">
+    <h3>Personal Information</h3>
+    <table>
+        <tr><td style="width: 200px; font-weight: 600;">Name</td><td>{{ candidate.name }}</td></tr>
+        <tr><td style="font-weight: 600;">Email</td><td>{{ candidate.email }}</td></tr>
+        <tr><td style="font-weight: 600;">Target Role</td><td>{{ candidate.get('target_role', 'Not set') }}</td></tr>
+        <tr><td style="font-weight: 600;">Registered</td><td>{{ candidate.get('registered_at', '')[:10] }}</td></tr>
+        <tr>
+            <td style="font-weight: 600;">Resume Status</td>
+            <td>
+                {% if candidate.get('resume_uploaded') %}
+                    <span class="score-badge score-high">Uploaded</span>
+                {% else %}
+                    <span class="score-badge score-low">Not uploaded</span>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+</div>
+
+{% if parsed %}
+<div class="card">
+    <h3>Parsed Resume Data</h3>
+    <div style="margin-bottom: 1rem;">
+        <strong>Skills ({{ parsed.skills|length }}):</strong>
+        <div style="margin-top: 0.5rem;">
+            {% for skill in parsed.skills %}
+                <span class="skill-tag">{{ skill }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    <p><strong>Experience:</strong> {{ parsed.experience_years }} years</p>
+    <p><strong>Education:</strong> {{ parsed.education }}</p>
+</div>
+{% endif %}
+{% endblock %}

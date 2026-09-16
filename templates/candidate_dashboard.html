@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Candidate Dashboard{% endblock %}
+{% block content %}
+<h2 style="margin-bottom: 1.5rem;">Welcome, {{ session.get('name') }}</h2>
+
+<div class="grid-2">
+    <div class="card">
+        <h2>Your Profile</h2>
+        {% if candidate %}
+            <p><strong>Name:</strong> {{ candidate.name }}</p>
+            <p><strong>Email:</strong> {{ candidate.email }}</p>
+            <p><strong>Target Role:</strong> {{ candidate.get('target_role', 'Not set') }}</p>
+            <p><strong>Resume:</strong> {{ 'Uploaded' if candidate.get('resume_uploaded') else 'Not uploaded' }}</p>
+        {% endif %}
+
+        {% if parsed %}
+            <hr style="margin: 1rem 0;">
+            <p><strong>Skills Found:</strong> {{ parsed.skills|length }}</p>
+            <div style="margin: 0.5rem 0;">
+                {% for skill in parsed.skills %}
+                    <span class="skill-tag">{{ skill }}</span>
+                {% endfor %}
+            </div>
+            <p><strong>Experience:</strong> {{ parsed.experience_years }} years</p>
+            <p><strong>Education:</strong> {{ parsed.education }}</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h2>Actions</h2>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <a href="{{ url_for('candidate.upload_resume') }}" class="btn btn-primary">
+                {% if candidate and candidate.get('resume_uploaded') %}Re-upload Resume{% else %}Upload Resume{% endif %}
+            </a>
+            {% if candidate and candidate.get('resume_uploaded') %}
+                <a href="{{ url_for('candidate.match_jobs') }}" class="btn btn-success">Find Matching Jobs</a>
+            {% else %}
+                <p style="color: #6b7280;">Upload your resume to start matching with jobs.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
