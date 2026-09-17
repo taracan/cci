@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Upload JD{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 650px; margin: 2rem auto;">
+    <h2>Upload Job Description</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label>Role Title *</label>
+            <input type="text" name="role_title" required placeholder="e.g. Python Backend Developer">
+        </div>
+        <div class="form-group">
+            <label>Company *</label>
+            <input type="text" name="company" required placeholder="e.g. TechCorp">
+        </div>
+        <div class="form-group">
+            <label>Required Skills * (comma separated)</label>
+            <input type="text" name="required_skills" required placeholder="Python, FastAPI, AWS, Docker">
+        </div>
+        <div class="form-group">
+            <label>Preferred Skills (comma separated)</label>
+            <input type="text" name="preferred_skills" placeholder="Kubernetes, Terraform, Redis">
+        </div>
+        <div class="form-group">
+            <label>Experience Required (years) *</label>
+            <input type="number" name="experience_years" required min="0" max="30" value="2">
+        </div>
+        <div class="form-group">
+            <label>Location</label>
+            <input type="text" name="location" placeholder="e.g. Hyderabad, Remote" value="Remote">
+        </div>
+        <div class="form-group">
+            <label>Full Job Description *</label>
+            <textarea name="jd_text" required placeholder="Paste the complete job description here..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.8rem;">Upload JD</button>
+    </form>
+</div>
+{% endblock %}

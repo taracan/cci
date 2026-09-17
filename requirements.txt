@@ -1,0 +1,9 @@
+flask
+pdfplumber
+pyjwt
+bcrypt
+chromadb
+sentence-transformers
+sqlalchemy
+requests
+psycopg2-binary

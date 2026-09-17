@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Model Registry{% endblock %}
+{% block content %}
+<h2>Model Registry</h2>
+<p style="color:#6b7280; margin-bottom:1rem;">
+  Select which model powers LLM tasks (resume parsing, match reasoning). Only
+  <strong>active</strong> models can be selected. Currently selected:
+  <strong>{{ selected or 'default' }}</strong>
+</p>
+
+<div class="card">
+<table>
+  <thead>
+    <tr><th>Model</th><th>Family</th><th>Purpose</th><th>Status</th><th>Actions</th></tr>
+  </thead>
+  <tbody>
+  {% for m in models %}
+    <tr>
+      <td>
+        <strong>{{ m.display_name or m.model_id }}</strong><br>
+        <span style="color:#6b7280; font-size:0.8rem;">{{ m.model_id }}</span>
+        {% if m.is_default %}<span class="skill-tag">default</span>{% endif %}
+      </td>
+      <td>{{ m.family }}</td>
+      <td>{{ m.purpose }}</td>
+      <td>
+        {% if m.status == 'active' %}<span class="score-badge score-high">active</span>
+        {% elif m.status == 'inactive' %}<span class="score-badge score-mid">inactive</span>
+        {% else %}<span class="score-badge score-low">{{ m.status }}</span>{% endif %}
+      </td>
+      <td style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+        {% if m.status == 'active' %}
+        <form method="POST" action="{{ url_for('admin.select_model') }}">
+          <input type="hidden" name="model_id" value="{{ m.model_id }}">
+          <button class="btn btn-primary" style="padding:0.3rem 0.8rem; font-size:0.8rem;">Use</button>
+        </form>
+        {% endif %}
+        <form method="POST" action="{{ url_for('admin.set_model_status', model_id=m.model_id) }}">
+          <input type="hidden" name="status" value="{% if m.status == 'active' %}inactive{% else %}active{% endif %}">
+          <button class="btn btn-secondary" style="padding:0.3rem 0.8rem; font-size:0.8rem;">
+            {% if m.status == 'active' %}Deactivate{% else %}Activate{% endif %}
+          </button>
+        </form>
+        <form method="POST" action="{{ url_for('admin.set_model_status', model_id=m.model_id) }}">
+          <input type="hidden" name="status" value="retired">
+          <button class="btn btn-danger" style="padding:0.3rem 0.8rem; font-size:0.8rem;">Retire</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

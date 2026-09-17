@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}JD: {{ jd.role_title }}{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h2>{{ jd.role_title }}</h2>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{{ url_for('admin.edit_jd', jd_id=jd.jd_id) }}" class="btn btn-primary">Edit</a>
+        <a href="{{ url_for('admin.candidates_for_jd', jd_id=jd.jd_id) }}" class="btn btn-success">Rank Candidates</a>
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary">Back</a>
+    </div>
+</div>
+
+<div class="card">
+    <table>
+        <tr><td style="width: 180px; font-weight: 600;">Company</td><td>{{ jd.company }}</td></tr>
+        <tr><td style="font-weight: 600;">Location</td><td>{{ jd.location }}</td></tr>
+        <tr><td style="font-weight: 600;">Experience Required</td><td>{{ jd.experience_years }} years</td></tr>
+        <tr><td style="font-weight: 600;">Status</td><td>{% if jd.is_active %}<span class="score-badge score-high">Active</span>{% else %}<span class="score-badge score-low">Inactive</span>{% endif %}</td></tr>
+        <tr><td style="font-weight: 600;">Created</td><td>{{ jd.created_at[:10] }}</td></tr>
+    </table>
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <h3>Required Skills</h3>
+        {% for s in jd.required_skills %}
+            <span class="skill-tag">{{ s }}</span>
+        {% endfor %}
+    </div>
+    <div class="card">
+        <h3>Preferred Skills</h3>
+        {% for s in jd.preferred_skills %}
+            <span class="skill-tag" style="background: #fef3c7; color: #92400e;">{{ s }}</span>
+        {% else %}
+            <span style="color: #6b7280;">None specified</span>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card">
+    <h3>Full Job Description</h3>
+    <p style="white-space: pre-wrap; color: #374151;">{{ jd.jd_text }}</p>
+</div>
+{% endblock %}

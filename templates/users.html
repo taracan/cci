@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Users & Roles{% endblock %}
+{% block content %}
+<h2>Users &amp; Roles</h2>
+
+<div class="card">
+  <h3>Admins ({{ admins|length }})</h3>
+  <table>
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Registered</th></tr></thead>
+    <tbody>
+    {% for a in admins %}
+      <tr>
+        <td>{{ a.name }}</td>
+        <td>{{ a.email }}</td>
+        <td><span class="score-badge score-high">admin</span></td>
+        <td style="color:#6b7280; font-size:0.85rem;">{{ a.registered_at[:10] }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h3>Candidates ({{ candidates|length }})</h3>
+  <table>
+    <thead><tr><th>Name</th><th>Email</th><th>Target Role</th><th>Resume</th><th>Role</th></tr></thead>
+    <tbody>
+    {% for c in candidates %}
+      <tr>
+        <td>{{ c.name }}</td>
+        <td>{{ c.email }}</td>
+        <td>{{ c.get('target_role', '-') }}</td>
+        <td>
+          {% if c.get('resume_uploaded') %}
+            <span class="score-badge score-high">uploaded</span>
+          {% else %}
+            <span class="score-badge score-low">pending</span>
+          {% endif %}
+        </td>
+        <td><span class="skill-tag">candidate</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Resume-JD Matching Portal{% endblock %}
+{% block content %}
+<div class="hero" style="margin: -2rem -1.5rem 2rem; padding: 5rem 2rem;">
+    <h1>Resume-JD Matching Portal</h1>
+    <p>Upload your resume. Find matching jobs. Get scored instantly.</p>
+    <div class="hero-actions">
+        <a href="{{ url_for('public.register') }}" class="btn btn-primary" style="padding: 0.8rem 2rem; font-size: 1rem;">Get Started</a>
+        <a href="{{ url_for('public.login') }}" class="btn btn-secondary" style="padding: 0.8rem 2rem; font-size: 1rem;">Login</a>
+    </div>
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <h2>For Candidates</h2>
+        <p style="color: #6b7280; margin-bottom: 1rem;">Upload your resume and get matched with relevant job descriptions based on your skills, experience, and target role.</p>
+        <ul style="list-style: none; padding: 0;">
+            <li style="padding: 0.5rem 0;">Register and upload your resume (PDF/TXT)</li>
+            <li style="padding: 0.5rem 0;">System extracts your skills and experience</li>
+            <li style="padding: 0.5rem 0;">Get ranked job matches with scores</li>
+            <li style="padding: 0.5rem 0;">See which skills you match and which you are missing</li>
+        </ul>
+    </div>
+    <div class="card">
+        <h2>For Recruiters (Admin)</h2>
+        <p style="color: #6b7280; margin-bottom: 1rem;">Upload job descriptions and find the best candidates ranked by skill match, experience, and role relevance.</p>
+        <ul style="list-style: none; padding: 0;">
+            <li style="padding: 0.5rem 0;">Upload JDs with required and preferred skills</li>
+            <li style="padding: 0.5rem 0;">View all registered candidates</li>
+            <li style="padding: 0.5rem 0;">See ranked candidates per JD</li>
+            <li style="padding: 0.5rem 0;">Weighted scoring: Skill 60% + Exp 25% + Role 15%</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

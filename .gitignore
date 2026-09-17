@@ -1,0 +1,33 @@
+# ---- Secrets & credentials (NEVER commit) ----
+data/admins.json
+.env
+*.pem
+*.key
+
+# ---- Databases & local data ----
+*.db
+*.sqlite
+*.sqlite3
+data/chroma/
+data/resumes/
+data/parsed_resumes/
+
+# ---- Logs ----
+logs/
+*.log
+*.jsonl
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# ---- OS / editor ----
+.DS_Store
+.vscode/
+.idea/

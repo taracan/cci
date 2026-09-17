@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Job Matches{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h2>Your Job Matches</h2>
+    <a href="{{ url_for('candidate.candidate_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+{% if not matches %}
+    <div class="card">
+        <p style="text-align: center; color: #6b7280; padding: 2rem;">No job descriptions available yet. Check back later.</p>
+    </div>
+{% else %}
+    {% for item in matches %}
+        {% set jd = item.jd %}
+        {% set r = item.result %}
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h3 style="margin-bottom: 0.3rem;">{{ jd.role_title }}</h3>
+                    <p style="color: #6b7280;">{{ jd.company }} | {{ jd.location }} | {{ jd.experience_years }} years required</p>
+                </div>
+                <span class="score-badge {% if r.overall_score >= 75 %}score-high{% elif r.overall_score >= 50 %}score-mid{% else %}score-low{% endif %}">
+                    {{ r.overall_score }}%
+                </span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; text-align: center;">
+                <div style="padding: 0.5rem; background: #f9fafb; border-radius: 6px;">
+                    <div style="font-size: 1.2rem; font-weight: 700; color: #2563eb;">{{ r.skill_score }}%</div>
+                    <div style="font-size: 0.8rem; color: #6b7280;">Skill Match</div>
+                </div>
+                <div style="padding: 0.5rem; background: #f9fafb; border-radius: 6px;">
+                    <div style="font-size: 1.2rem; font-weight: 700; color: #059669;">{{ r.experience_score }}%</div>
+                    <div style="font-size: 0.8rem; color: #6b7280;">Experience</div>
+                </div>
+                <div style="padding: 0.5rem; background: #f9fafb; border-radius: 6px;">
+                    <div style="font-size: 1.2rem; font-weight: 700; color: #7c3aed;">{{ r.role_score }}%</div>
+                    <div style="font-size: 0.8rem; color: #6b7280;">Role Fit</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 0.5rem;">
+                <strong style="font-size: 0.85rem;">Matched:</strong>
+                {% for s in r.matched_skills %}
+                    <span class="skill-tag">{{ s }}</span>
+                {% endfor %}
+                {% if not r.matched_skills %}
+                    <span style="color: #6b7280; font-size: 0.85rem;">None</span>
+                {% endif %}
+            </div>
+            {% if r.missing_skills %}
+            <div style="margin-top: 0.5rem;">
+                <strong style="font-size: 0.85rem;">Missing:</strong>
+                {% for s in r.missing_skills %}
+                    <span class="skill-tag missing">{{ s }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+{% endif %}
+{% endblock %}

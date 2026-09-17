@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}All JDs{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h2>All Job Descriptions</h2>
+    <a href="{{ url_for('admin.upload_jd') }}" class="btn btn-primary">Upload New JD</a>
+</div>
+
+{% for jd in jds %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+            <h3>{{ jd.role_title }}</h3>
+            <p style="color: #6b7280;">{{ jd.company }} | {{ jd.location }} | {{ jd.experience_years }} yrs</p>
+            <div style="margin-top: 0.5rem;">
+                {% for s in jd.required_skills %}
+                    <span class="skill-tag">{{ s }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            {% if jd.is_active %}
+                <span class="score-badge score-high">Active</span>
+            {% else %}
+                <span class="score-badge score-low">Inactive</span>
+            {% endif %}
+        </div>
+    </div>
+    <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+        <a href="{{ url_for('admin.view_jd', jd_id=jd.jd_id) }}" class="btn btn-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;">View</a>
+        <a href="{{ url_for('admin.edit_jd', jd_id=jd.jd_id) }}" class="btn btn-primary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;">Edit</a>
+        <a href="{{ url_for('admin.candidates_for_jd', jd_id=jd.jd_id) }}" class="btn btn-success" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;">Rank Candidates</a>
+        {% if jd.is_active %}
+        <form method="POST" action="{{ url_for('admin.delete_jd', jd_id=jd.jd_id) }}" style="display: inline;">
+            <button type="submit" class="btn btn-danger" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;">Deactivate</button>
+        </form>
+        {% else %}
+        <form method="POST" action="{{ url_for('admin.reactivate_jd', jd_id=jd.jd_id) }}" style="display: inline;">
+            <button type="submit" class="btn btn-success" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;">Reactivate</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="card"><p style="color: #6b7280; text-align: center;">No JDs uploaded yet.</p></div>
+{% endfor %}
+{% endblock %}

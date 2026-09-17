@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}All Candidates{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h2>All Candidates ({{ candidates|length }})</h2>
+    <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+<div class="card">
+    {% if not candidates %}
+        <p style="color: #6b7280; text-align: center; padding: 2rem;">No candidates registered yet.</p>
+    {% else %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Target Role</th>
+                <th>Resume</th>
+                <th>Registered</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in candidates %}
+            <tr>
+                <td><strong>{{ c.name }}</strong></td>
+                <td>{{ c.email }}</td>
+                <td>{{ c.get('target_role', '-') }}</td>
+                <td>
+                    {% if c.get('resume_uploaded') %}
+                        <span class="score-badge score-high">Uploaded</span>
+                    {% else %}
+                        <span class="score-badge score-low">Pending</span>
+                    {% endif %}
+                </td>
+                <td>{{ c.get('registered_at', '')[:10] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}

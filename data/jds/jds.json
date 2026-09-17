@@ -1,0 +1,248 @@
+[
+  {
+    "jd_id": "jd_001",
+    "role_title": "Python Backend Developer",
+    "company": "TechNova Solutions",
+    "required_skills": [
+      "Python",
+      "FastAPI",
+      "PostgreSQL",
+      "Docker",
+      "REST APIs",
+      "Git"
+    ],
+    "preferred_skills": [
+      "Redis",
+      "Celery",
+      "AWS",
+      "Kubernetes"
+    ],
+    "experience_years": 3,
+    "jd_text": "We are looking for a Python Backend Developer with 3+ years of experience building scalable REST APIs using FastAPI or Flask. You will design and implement microservices, integrate with PostgreSQL databases, and deploy using Docker containers. Strong understanding of async programming, ORM patterns, and CI/CD pipelines required.",
+    "location": "Hyderabad",
+    "is_active": true,
+    "uploaded_by": "admin_001",
+    "created_at": "2026-08-10T09:00:00"
+  },
+  {
+    "jd_id": "jd_002",
+    "role_title": "Machine Learning Engineer",
+    "company": "DataMinds AI",
+    "required_skills": [
+      "Python",
+      "TensorFlow",
+      "PyTorch",
+      "Scikit-learn",
+      "Pandas",
+      "NumPy",
+      "SQL"
+    ],
+    "preferred_skills": [
+      "MLflow",
+      "AWS SageMaker",
+      "Docker",
+      "LangChain",
+      "Hugging Face"
+    ],
+    "experience_years": 2,
+    "jd_text": "Seeking an ML Engineer to build and deploy production machine learning models. You will work on NLP pipelines, recommendation systems, and computer vision projects. Must have hands-on experience with model training, evaluation, hyperparameter tuning, and serving models via REST APIs. Familiarity with MLOps practices and cloud deployment preferred.",
+    "location": "Bangalore",
+    "is_active": true,
+    "uploaded_by": "admin_001",
+    "created_at": "2026-08-11T10:30:00"
+  },
+  {
+    "jd_id": "jd_003",
+    "role_title": "Full Stack Developer",
+    "company": "WebCraft Studios",
+    "required_skills": [
+      "Python",
+      "JavaScript",
+      "React",
+      "Node.js",
+      "MongoDB",
+      "HTML",
+      "CSS"
+    ],
+    "preferred_skills": [
+      "TypeScript",
+      "Next.js",
+      "GraphQL",
+      "Tailwind CSS",
+      "Docker"
+    ],
+    "experience_years": 2,
+    "jd_text": "Looking for a Full Stack Developer comfortable working across the entire stack. You will build responsive frontends with React, develop backend APIs with Node.js or Python, and manage MongoDB databases. Experience with agile workflows, code reviews, and deployment automation is expected.",
+    "location": "Remote",
+    "is_active": true,
+    "uploaded_by": "admin_001",
+    "created_at": "2026-08-12T11:00:00"
+  },
+  {
+    "jd_id": "jd_004",
+    "role_title": "DevOps Engineer",
+    "company": "CloudScale Infra",
+    "required_skills": [
+      "AWS",
+      "Docker",
+      "Kubernetes",
+      "Terraform",
+      "Linux",
+      "CI/CD",
+      "Python"
+    ],
+    "preferred_skills": [
+      "Ansible",
+      "Prometheus",
+      "Grafana",
+      "Helm",
+      "ArgoCD"
+    ],
+    "experience_years": 4,
+    "jd_text": "We need a DevOps Engineer to manage our cloud infrastructure on AWS. You will design CI/CD pipelines, containerize applications with Docker, orchestrate with Kubernetes, and manage infrastructure as code using Terraform. Strong Linux administration and scripting skills are essential. On-call rotation required.",
+    "location": "Hyderabad",
+    "is_active": true,
+    "uploaded_by": "admin_002",
+    "created_at": "2026-08-13T08:45:00"
+  },
+  {
+    "jd_id": "jd_005",
+    "role_title": "Data Analyst",
+    "company": "InsightPulse Analytics",
+    "required_skills": [
+      "Python",
+      "SQL",
+      "Pandas",
+      "Excel",
+      "Tableau",
+      "Statistics"
+    ],
+    "preferred_skills": [
+      "Power BI",
+      "Airflow",
+      "dbt",
+      "BigQuery"
+    ],
+    "experience_years": 1,
+    "jd_text": "Hiring a Data Analyst to transform raw data into business insights. You will write complex SQL queries, build dashboards in Tableau, perform statistical analysis, and automate reporting pipelines using Python. Must be comfortable communicating findings to non-technical stakeholders.",
+    "location": "Chennai",
+    "is_active": false,
+    "uploaded_by": "admin_001",
+    "created_at": "2026-08-14T14:00:00"
+  },
+  {
+    "jd_id": "jd_006",
+    "role_title": "AI/LLM Engineer",
+    "company": "GenAI Labs",
+    "required_skills": [
+      "Python",
+      "LangChain",
+      "OpenAI API",
+      "Vector Databases",
+      "FastAPI",
+      "Prompt Engineering"
+    ],
+    "preferred_skills": [
+      "AWS Bedrock",
+      "LangGraph",
+      "ChromaDB",
+      "RAG",
+      "Fine-tuning"
+    ],
+    "experience_years": 2,
+    "jd_text": "Join our team building production LLM-powered applications. You will design RAG pipelines, implement agentic workflows using LangGraph, integrate with vector databases for semantic search, and deploy via FastAPI. Deep understanding of prompt engineering, token optimization, and LLM evaluation required. Experience with AWS Bedrock or similar managed LLM services is a plus.",
+    "location": "Remote",
+    "is_active": true,
+    "uploaded_by": "admin_002",
+    "created_at": "2026-08-15T09:30:00"
+  },
+  {
+    "jd_id": "jd_007",
+    "role_title": "Cloud Solutions Architect",
+    "company": "NexGen Cloud",
+    "required_skills": [
+      "AWS",
+      "Azure",
+      "System Design",
+      "Microservices",
+      "Networking",
+      "Security",
+      "Python"
+    ],
+    "preferred_skills": [
+      "Serverless",
+      "CDK",
+      "Cost Optimization",
+      "Multi-cloud",
+      "Kafka"
+    ],
+    "experience_years": 6,
+    "jd_text": "Seeking a senior Cloud Solutions Architect to design large-scale distributed systems. You will lead architecture decisions, create multi-region deployment strategies, ensure security compliance, and optimize cloud costs. Must have deep AWS expertise and experience designing systems handling 10K+ requests per second.",
+    "location": "Bangalore",
+    "is_active": true,
+    "uploaded_by": "admin_002",
+    "created_at": "2026-08-16T10:00:00"
+  },
+  {
+    "jd_id": "jd_008",
+    "role_title": "QA Automation Engineer",
+    "company": "QualityFirst Tech",
+    "required_skills": [
+      "Python",
+      "Selenium",
+      "Pytest",
+      "API Testing",
+      "Git",
+      "JIRA"
+    ],
+    "preferred_skills": [
+      "Playwright",
+      "Robot Framework",
+      "Docker",
+      "Jenkins",
+      "Performance Testing"
+    ],
+    "experience_years": 2,
+    "jd_text": "Looking for a QA Automation Engineer to build and maintain our test automation framework. You will write end-to-end tests using Selenium/Playwright, API tests with Pytest, and integrate tests into CI/CD pipelines. Must understand test strategy, defect lifecycle, and be able to identify edge cases from requirements.",
+    "location": "Pune",
+    "is_active": true,
+    "uploaded_by": "admin_001",
+    "created_at": "2026-08-17T11:15:00"
+  },
+  {
+    "jd_id": "jd_b0c5fb74",
+    "role_title": "ai engineer",
+    "company": "fin data",
+    "required_skills": [
+      "python",
+      "deep learning",
+      "mlflow"
+    ],
+    "preferred_skills": [],
+    "experience_years": 0,
+    "jd_text": "We are hiring an AI Engineer to design, build, and deploy production LLM-powered applications. You will architect RAG pipelines using LangChain and vector databases, build agentic workflows with tool-calling and multi-step reasoning, and expose them via FastAPI services. Day-to-day work includes prompt engineering, evaluating model outputs, optimizing token usage for cost, and integrating with cloud LLM providers like AWS Bedrock or OpenAI. You should be comfortable working across the full stack \u2014 from crafting system prompts to containerizing services with Docker. Experience with evaluation frameworks, guardrails for LLM safety, and async Python is a strong plus. This is a hands-on role in a fast-moving team shipping AI products weekly.",
+    "location": "Remote",
+    "is_active": true,
+    "uploaded_by": "admin_78153c30",
+    "created_at": "2026-08-18T14:45:33.977992"
+  },
+  {
+    "jd_id": "jd_b72473a2",
+    "role_title": "ML engineer",
+    "company": "CCI",
+    "required_skills": [
+      "python",
+      "ML",
+      "AI",
+      "Docker",
+      "MCP"
+    ],
+    "preferred_skills": [],
+    "experience_years": 2,
+    "jd_text": "Need a ML engineer",
+    "location": "Remote",
+    "is_active": true,
+    "uploaded_by": "admin_78153c30",
+    "created_at": "2026-09-11T17:10:18.861371"
+  }
+]
