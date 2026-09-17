@@ -2,7 +2,7 @@
 
 `@audit_action("name")` wraps any Flask view so that EVERY invocation is logged
 with the actor, role, route, url args, form fields, trace_id, and outcome —
-without having to add a log line inside each view by hand.
+without having to add a log line inside each view by hand .
 """
 from __future__ import annotations
 
