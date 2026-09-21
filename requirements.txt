@@ -7,3 +7,5 @@ sentence-transformers
 sqlalchemy
 requests
 psycopg2-binary
+watchtower
+boto3

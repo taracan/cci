@@ -38,6 +38,12 @@ LOG_MAX_BYTES = 10 * 1024 * 1024   # 10 MB per file
 LOG_BACKUP_COUNT = 5
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_TO_CLOUDWATCH = os.getenv("LOG_TO_CLOUDWATCH", "false").lower() == "true"
+CLOUDWATCH_LOG_GROUP = os.getenv("CLOUDWATCH_LOG_GROUP", "resume-jd-portal")
+CLOUDWATCH_LOG_STREAM = os.getenv("CLOUDWATCH_LOG_STREAM", "")  # blank = host-app-date
+CLOUDWATCH_REGION = os.getenv("CLOUDWATCH_REGION", os.getenv("AWS_REGION", ""))
+CLOUDWATCH_RETENTION_DAYS = int(os.getenv("CLOUDWATCH_RETENTION_DAYS", "30"))
+# Mask emails/names/resume text in the CloudWatch copy (local files stay full).
+CLOUDWATCH_REDACT = os.getenv("CLOUDWATCH_REDACT", "true").lower() == "true"
 
 # Create directories
 for d in [RESUMES_DIR, PARSED_RESUMES_DIR, JDS_DIR, CHROMA_DIR, LOG_DIR]:
