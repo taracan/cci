@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 
 from config import (
     LOG_DIR, LOG_MAX_BYTES, LOG_BACKUP_COUNT, LOG_LEVEL, LOG_TO_CLOUDWATCH,
+    CLOUDWATCH_REDACT,
 )
 
 _CONFIGURED = False
@@ -58,6 +60,37 @@ class _JsonFormatter(logging.Formatter):
         return json.dumps(payload, default=str)
 
 
+class _RedactingJsonFormatter(_JsonFormatter):
+    """_JsonFormatter with PII masked — used for logs leaving the machine.
+
+    Local files keep the full values; only the CloudWatch copy is redacted, so
+    debugging stays easy here while AWS holds no candidate identities.
+    """
+
+    # Field names whose values are replaced wholesale, wherever they are nested.
+    _PII_KEYS = {"email", "name", "full_name", "phone", "address", "raw_text", "summary"}
+    _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+
+    @classmethod
+    def _scrub(cls, value):
+        """Recursively mask PII keys and any stray email addresses."""
+        if isinstance(value, dict):
+            return {
+                k: ("***" if k.lower() in cls._PII_KEYS else cls._scrub(v))
+                for k, v in value.items()
+            }
+        if isinstance(value, list):
+            return [cls._scrub(v) for v in value]
+        if isinstance(value, str):
+            return cls._EMAIL_RE.sub("***", value)
+        return value
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Serialize as JSON, then mask PII before the line leaves the host."""
+        payload = json.loads(super().format(record))
+        return json.dumps(self._scrub(payload), default=str)
+
+
 def setup_logging() -> None:
     """Configure root logging once: JSON to rotating file + console."""
     global _CONFIGURED
@@ -91,7 +124,10 @@ def setup_logging() -> None:
             from observability.cloudwatch import build_cloudwatch_handler
             cw = build_cloudwatch_handler()
             if cw is not None:
-                cw.setFormatter(formatter)
+                # Same events as the local file, with PII masked (unless opted out).
+                cw.setFormatter(
+                    _RedactingJsonFormatter() if CLOUDWATCH_REDACT else formatter
+                )
                 root.addHandler(cw)
         except Exception as exc:  # never let logging setup break the app
             logging.getLogger("logging_config").warning(
