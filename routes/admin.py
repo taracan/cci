@@ -3,8 +3,9 @@ import json
 import uuid
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, Response
 
 from auth import login_required, admin_required, get_all_candidates, get_current_user_id, load_json, save_json
 from config import JDS_DIR, PARSED_RESUMES_DIR
@@ -14,20 +15,38 @@ from vector_matcher import semantic_score, index_jd, delete_jd as delete_jd_embe
 from pipeline.matcher import two_stage_match
 from observability.logging_config import get_logger
 
-admin = Blueprint("admin", __name__, url_prefix="/admin")
+admin: Blueprint = Blueprint("admin", __name__, url_prefix="/admin")
 
-_audit = get_logger("admin.action")
+_audit: Any = get_logger("admin.action")
 
-JDS_FILE = JDS_DIR / "jds.json"
+JDS_FILE: Path = JDS_DIR / "jds.json"
 
 
-def _load_jds():
-    """Load all JDs from file."""
+def _load_jds() -> list[dict[str, Any]]:
+    """Load all JDs from file.
+
+    Returns:
+        list[dict[str, Any]]: List of job description dictionaries.
+
+    Raises:
+        FileNotFoundError: If JDS_FILE does not exist.
+        json.JSONDecodeError: If file is not valid JSON.
+    """
     return load_json(JDS_FILE)
 
 
-def _save_jds(jds):
-    """Save JDs to file."""
+def _save_jds(jds: list[dict[str, Any]]) -> None:
+    """Save JDs to file.
+
+    Args:
+        jds: List of job description dictionaries to persist.
+
+    Returns:
+        None
+
+    Raises:
+        IOError: If file write operation fails.
+    """
     save_json(JDS_FILE, jds)
 
 
@@ -52,27 +71,51 @@ def admin_dashboard():
 @admin.route("/upload-jd", methods=["GET", "POST"])
 @login_required
 @admin_required
-def upload_jd():
-    """Upload a new Job Description."""
+def upload_jd() -> Response | str:
+    """Upload a new Job Description.
+
+    GET: Render upload form
+    POST: Process form submission, create JD, embed, and persist
+
+    Form Parameters:
+        role_title (str): Job role title (required)
+        company (str): Company name (required)
+        required_skills (str): Comma-separated required skills (required)
+        preferred_skills (str): Comma-separated preferred skills
+        experience_years (int): Required years of experience
+        jd_text (str): Full job description text (required)
+        location (str): Job location (default: "Remote")
+
+    Returns:
+        Response: Redirect to dashboard on success, or re-render form on validation failure
+        str: HTML form template on GET request
+
+    Side Effects:
+        - Creates JD record in jds.json
+        - Embeds JD text and stores in ChromaDB
+        - Logs audit event
+    """
     if request.method == "GET":
         return render_template("upload_jd.html")
 
-    role_title = request.form.get("role_title", "").strip()
-    company = request.form.get("company", "").strip()
-    required_skills_raw = request.form.get("required_skills", "")
-    preferred_skills_raw = request.form.get("preferred_skills", "")
-    experience_years = request.form.get("experience_years", "0")
-    jd_text = request.form.get("jd_text", "").strip()
-    location = request.form.get("location", "Remote").strip()
+    role_title: str = request.form.get("role_title", "").strip()
+    company: str = request.form.get("company", "").strip()
+    required_skills_raw: str = request.form.get("required_skills", "")
+    preferred_skills_raw: str = request.form.get("preferred_skills", "")
+    experience_years: str = request.form.get("experience_years", "0")
+    jd_text: str = request.form.get("jd_text", "").strip()
+    location: str = request.form.get("location", "Remote").strip()
 
-    required_skills = [s.strip() for s in required_skills_raw.split(",") if s.strip()]
-    preferred_skills = [s.strip() for s in preferred_skills_raw.split(",") if s.strip()]
+    required_skills: list[str] = [s.strip() for s in required_skills_raw.split(",") if s.strip()]
+    preferred_skills: list[str] = [s.strip() for s in preferred_skills_raw.split(",") if s.strip()]
 
+    # Validation
     if not role_title or not company or not required_skills or not jd_text:
         flash("Please fill all required fields (Role, Company, Required Skills, JD Text).", "danger")
         return render_template("upload_jd.html")
 
-    jd = JobDescription(
+    # Create JD object
+    jd: JobDescription = JobDescription(
         jd_id=f"jd_{uuid.uuid4().hex[:8]}",
         role_title=role_title,
         company=company,
@@ -86,12 +129,18 @@ def upload_jd():
         created_at=datetime.utcnow().isoformat(),
     )
 
-    jds = _load_jds()
+    # Persist to file
+    jds: list[dict[str, Any]] = _load_jds()
     jds.append(jd.to_dict())
     _save_jds(jds)
 
-    index_jd(jd.jd_id, jd_text)
+    # Embed and index in ChromaDB (graceful failure on error)
+    try:
+        index_jd(jd.jd_id, jd_text)
+    except Exception as e:
+        _audit.warning(f"Failed to index JD {jd.jd_id}: {e}")
 
+    # Audit log
     _audit.info("jd.uploaded", extra={
         "jd_id": jd.jd_id, "role_title": role_title, "company": company,
         "actor": get_current_user_id(), "role": session.get("role", ""),
@@ -125,10 +174,36 @@ def view_jd(jd_id):
 @admin.route("/jds/<jd_id>/edit", methods=["GET", "POST"])
 @login_required
 @admin_required
-def edit_jd(jd_id):
-    """Edit an existing JD."""
-    jds = _load_jds()
-    jd = next((j for j in jds if j["jd_id"] == jd_id), None)
+def edit_jd(jd_id: str) -> Response | str:
+    """Edit an existing JD.
+
+    GET: Render edit form with current JD data
+    POST: Process form submission, update JD, re-embed, and persist
+
+    Args:
+        jd_id: Unique job description ID to edit
+
+    Form Parameters:
+        role_title (str): Updated job role title
+        company (str): Updated company name
+        required_skills (str): Updated comma-separated required skills
+        preferred_skills (str): Updated comma-separated preferred skills
+        experience_years (int): Updated years of experience requirement
+        jd_text (str): Updated full job description text
+        location (str): Updated job location
+
+    Returns:
+        Response: Redirect to dashboard on success
+        str: HTML form template on GET or validation failure
+
+    Side Effects:
+        - Updates JD record in jds.json
+        - Re-embeds JD text and updates ChromaDB
+        - Logs audit event
+    """
+    jds: list[dict[str, Any]] = _load_jds()
+    jd: dict[str, Any] | None = next((j for j in jds if j["jd_id"] == jd_id), None)
+
     if not jd:
         flash("JD not found.", "danger")
         return redirect(url_for("admin.admin_dashboard"))
@@ -136,18 +211,29 @@ def edit_jd(jd_id):
     if request.method == "GET":
         return render_template("edit_jd.html", jd=jd)
 
-    # Update fields
+    # Update fields from form
     jd["role_title"] = request.form.get("role_title", jd["role_title"]).strip()
     jd["company"] = request.form.get("company", jd["company"]).strip()
-    jd["required_skills"] = [s.strip() for s in request.form.get("required_skills", "").split(",") if s.strip()]
-    jd["preferred_skills"] = [s.strip() for s in request.form.get("preferred_skills", "").split(",") if s.strip()]
+    jd["required_skills"] = [
+        s.strip() for s in request.form.get("required_skills", "").split(",") if s.strip()
+    ]
+    jd["preferred_skills"] = [
+        s.strip() for s in request.form.get("preferred_skills", "").split(",") if s.strip()
+    ]
     jd["experience_years"] = int(request.form.get("experience_years", jd["experience_years"]))
     jd["jd_text"] = request.form.get("jd_text", jd["jd_text"]).strip()
     jd["location"] = request.form.get("location", jd["location"]).strip()
 
+    # Persist to file
     _save_jds(jds)
-    index_jd(jd_id, jd["jd_text"])
 
+    # Re-embed and index in ChromaDB (graceful failure on error)
+    try:
+        index_jd(jd_id, jd["jd_text"])
+    except Exception as e:
+        _audit.warning(f"Failed to re-index JD {jd_id}: {e}")
+
+    # Audit log
     _audit.info("jd.edited", extra={
         "jd_id": jd_id, "role_title": jd.get("role_title"),
         "actor": get_current_user_id(), "role": session.get("role", ""),
