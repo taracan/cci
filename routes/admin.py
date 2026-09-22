@@ -10,7 +10,7 @@ from auth import login_required, admin_required, get_all_candidates, get_current
 from config import JDS_DIR, PARSED_RESUMES_DIR
 from matching_engine import calculate_match
 from models import JobDescription
-from vector_matcher import semantic_score
+from vector_matcher import semantic_score, index_jd, delete_jd as delete_jd_embedding
 from pipeline.matcher import two_stage_match
 from observability.logging_config import get_logger
 
@@ -90,6 +90,8 @@ def upload_jd():
     jds.append(jd.to_dict())
     _save_jds(jds)
 
+    index_jd(jd.jd_id, jd_text)
+
     _audit.info("jd.uploaded", extra={
         "jd_id": jd.jd_id, "role_title": role_title, "company": company,
         "actor": get_current_user_id(), "role": session.get("role", ""),
@@ -144,6 +146,8 @@ def edit_jd(jd_id):
     jd["location"] = request.form.get("location", jd["location"]).strip()
 
     _save_jds(jds)
+    index_jd(jd_id, jd["jd_text"])
+
     _audit.info("jd.edited", extra={
         "jd_id": jd_id, "role_title": jd.get("role_title"),
         "actor": get_current_user_id(), "role": session.get("role", ""),

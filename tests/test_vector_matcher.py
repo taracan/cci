@@ -32,7 +32,7 @@ class _FakeCollection:
 
 @pytest.fixture()
 def fake_vectors(monkeypatch):
-    """Patch the model + collection so no heavy deps load."""
+    """Patch the model + collections so no heavy deps load."""
     class _Vec(list):
         """A list that mimics numpy's .tolist() so embed_text works."""
         def tolist(self):
@@ -44,8 +44,12 @@ def fake_vectors(monkeypatch):
 
     monkeypatch.setattr(vector_matcher, "_get_model", lambda: _FakeModel())
 
-    holder = {"collection": _FakeCollection({})}
-    monkeypatch.setattr(vector_matcher, "_get_collection", lambda: holder["collection"])
+    holder = {
+        "resume_collection": _FakeCollection({}),
+        "jd_collection": _FakeCollection({})
+    }
+    monkeypatch.setattr(vector_matcher, "_get_resume_collection", lambda: holder["resume_collection"])
+    monkeypatch.setattr(vector_matcher, "_get_jd_collection", lambda: holder["jd_collection"])
     return holder
 
 
@@ -60,21 +64,21 @@ class TestSemanticScore:
         assert vector_matcher.semantic_score("   ", "c1") is None
 
     def test_empty_collection_returns_none(self, fake_vectors):
-        fake_vectors["collection"] = _FakeCollection({})
+        fake_vectors["resume_collection"] = _FakeCollection({})
         assert vector_matcher.semantic_score("jd text", "c1") is None
 
     def test_candidate_not_indexed_returns_none(self, fake_vectors):
-        fake_vectors["collection"] = _FakeCollection({"other": 0.5})
+        fake_vectors["resume_collection"] = _FakeCollection({"other": 0.5})
         assert vector_matcher.semantic_score("jd text", "c1") is None
 
     def test_distance_maps_to_score(self, fake_vectors):
         # distance 0 → similarity 1/(1+0)=1.0 → 100.0
-        fake_vectors["collection"] = _FakeCollection({"c1": 0.0})
+        fake_vectors["resume_collection"] = _FakeCollection({"c1": 0.0})
         assert vector_matcher.semantic_score("jd text", "c1") == 100.0
 
     def test_larger_distance_lower_score(self, fake_vectors):
         # distance 1 → similarity 1/2 = 0.5 → 50.0
-        fake_vectors["collection"] = _FakeCollection({"c1": 1.0})
+        fake_vectors["resume_collection"] = _FakeCollection({"c1": 1.0})
         assert vector_matcher.semantic_score("jd text", "c1") == 50.0
 
 
@@ -86,7 +90,7 @@ class TestIndexResume:
             def upsert(self, **kwargs):
                 calls["upsert"] += 1
 
-        fake_vectors["collection"] = _C({})
+        fake_vectors["resume_collection"] = _C({})
         vector_matcher.index_resume("c1", "   ")
         assert calls["upsert"] == 0
 
@@ -98,7 +102,46 @@ class TestIndexResume:
                 captured["ids"] = ids
                 captured["documents"] = documents
 
-        fake_vectors["collection"] = _C({})
+        fake_vectors["resume_collection"] = _C({})
         vector_matcher.index_resume("c1", "real resume text")
         assert captured["ids"] == ["c1"]
         assert captured["documents"] == ["real resume text"]
+
+
+class TestIndexJD:
+    def test_blank_jd_is_noop(self, fake_vectors):
+        calls = {"upsert": 0}
+
+        class _C(_FakeCollection):
+            def upsert(self, **kwargs):
+                calls["upsert"] += 1
+
+        fake_vectors["jd_collection"] = _C({})
+        vector_matcher.index_jd("jd1", "   ")
+        assert calls["upsert"] == 0
+
+    def test_indexes_nonblank_jd(self, fake_vectors):
+        captured = {}
+
+        class _C(_FakeCollection):
+            def upsert(self, ids, embeddings, documents, metadatas):
+                captured["ids"] = ids
+                captured["documents"] = documents
+
+        fake_vectors["jd_collection"] = _C({})
+        vector_matcher.index_jd("jd1", "real jd text")
+        assert captured["ids"] == ["jd1"]
+        assert captured["documents"] == ["real jd text"]
+
+
+class TestDeleteJD:
+    def test_deletes_jd_from_collection(self, fake_vectors):
+        captured = {}
+
+        class _C(_FakeCollection):
+            def delete(self, ids):
+                captured["ids"] = ids
+
+        fake_vectors["jd_collection"] = _C({})
+        vector_matcher.delete_jd("jd1")
+        assert captured["ids"] == ["jd1"]
