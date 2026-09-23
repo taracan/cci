@@ -13,6 +13,15 @@ from models import JobDescription
 from vector_matcher import semantic_score
 from pipeline.matcher import two_stage_match
 from observability.logging_config import get_logger
+from storage import s3 as s3_storage
+from resume_parser import extract_text_from_bytes
+
+# MIME types accepted for JD file uploads
+_JD_ALLOWED_SUFFIXES = {".pdf", ".docx"}
+_JD_CONTENT_TYPES = {
+    ".pdf": "application/pdf",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
 
 admin = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -53,7 +62,7 @@ def admin_dashboard():
 @login_required
 @admin_required
 def upload_jd():
-    """Upload a new Job Description."""
+    """Upload a new Job Description (typed text OR PDF/DOCX file)."""
     if request.method == "GET":
         return render_template("upload_jd.html")
 
@@ -68,12 +77,69 @@ def upload_jd():
     required_skills = [s.strip() for s in required_skills_raw.split(",") if s.strip()]
     preferred_skills = [s.strip() for s in preferred_skills_raw.split(",") if s.strip()]
 
-    if not role_title or not company or not required_skills or not jd_text:
-        flash("Please fill all required fields (Role, Company, Required Skills, JD Text).", "danger")
+    # --- Validate structural fields (always required) ---
+    if not role_title or not company or not required_skills:
+        flash("Please fill all required fields (Role, Company, Required Skills).", "danger")
         return render_template("upload_jd.html")
 
+    # --- Handle optional file upload ---
+    jd_file_key = None
+    jd_original_filename = None
+    jd_content_type = None
+
+    uploaded_file = request.files.get("jd_file")
+    has_file = uploaded_file and uploaded_file.filename
+
+    if has_file:
+        suffix = Path(uploaded_file.filename).suffix.lower()
+        if suffix not in _JD_ALLOWED_SUFFIXES:
+            flash(
+                f"Unsupported file type '{suffix}'. Only PDF or DOCX are accepted.",
+                "danger",
+            )
+            return render_template("upload_jd.html")
+
+        jd_original_filename = uploaded_file.filename
+        jd_content_type = _JD_CONTENT_TYPES[suffix]
+        file_bytes = uploaded_file.read()
+
+        # Generate jd_id early so the deterministic S3 key can be built.
+        jd_id = f"jd_{uuid.uuid4().hex[:8]}"
+
+        # Build deterministic key — same jd_id + same extension always writes
+        # to the same S3 object, overwriting any previous upload.
+        jd_file_key = s3_storage.jd_key(jd_id, suffix)
+
+        # Upload original file to S3 (private, overwrites previous if any).
+        try:
+            s3_storage.upload_file(file_bytes, jd_file_key, jd_content_type)
+        except Exception as e:
+            flash(f"Could not store JD document in S3: {e}", "danger")
+            return render_template("upload_jd.html")
+
+        # Extract text from the uploaded document bytes.
+        try:
+            stored_bytes = s3_storage.download_file(jd_file_key)
+            jd_text = extract_text_from_bytes(stored_bytes, jd_original_filename)
+        except Exception as e:
+            flash(f"Could not extract text from JD document: {e}", "danger")
+            return render_template("upload_jd.html")
+
+        if not jd_text:
+            flash("Could not extract any text from the uploaded document.", "danger")
+            return render_template("upload_jd.html")
+    else:
+        # No file — typed text is required.
+        if not jd_text:
+            flash(
+                "Please either paste the Job Description text or upload a PDF/DOCX file.",
+                "danger",
+            )
+            return render_template("upload_jd.html")
+        jd_id = f"jd_{uuid.uuid4().hex[:8]}"
+
     jd = JobDescription(
-        jd_id=f"jd_{uuid.uuid4().hex[:8]}",
+        jd_id=jd_id,
         role_title=role_title,
         company=company,
         required_skills=required_skills,
@@ -84,6 +150,9 @@ def upload_jd():
         is_active=True,
         uploaded_by=get_current_user_id(),
         created_at=datetime.utcnow().isoformat(),
+        jd_file_key=jd_file_key,
+        jd_original_filename=jd_original_filename,
+        jd_content_type=jd_content_type,
     )
 
     jds = _load_jds()
@@ -93,6 +162,7 @@ def upload_jd():
     _audit.info("jd.uploaded", extra={
         "jd_id": jd.jd_id, "role_title": role_title, "company": company,
         "actor": get_current_user_id(), "role": session.get("role", ""),
+        "via_file": has_file,
     })
     flash(f"JD uploaded: {role_title} at {company}", "success")
     return redirect(url_for("admin.admin_dashboard"))
@@ -134,14 +204,62 @@ def edit_jd(jd_id):
     if request.method == "GET":
         return render_template("edit_jd.html", jd=jd)
 
-    # Update fields
+    # Update structured fields.
     jd["role_title"] = request.form.get("role_title", jd["role_title"]).strip()
     jd["company"] = request.form.get("company", jd["company"]).strip()
     jd["required_skills"] = [s.strip() for s in request.form.get("required_skills", "").split(",") if s.strip()]
     jd["preferred_skills"] = [s.strip() for s in request.form.get("preferred_skills", "").split(",") if s.strip()]
     jd["experience_years"] = int(request.form.get("experience_years", jd["experience_years"]))
-    jd["jd_text"] = request.form.get("jd_text", jd["jd_text"]).strip()
     jd["location"] = request.form.get("location", jd["location"]).strip()
+
+    # Optional: admin may supply a replacement document file.
+    # If provided, overwrite the same deterministic S3 key and replace jd_text.
+    # jd_original_filename and jd_content_type reflect only the current file.
+    updated_file = request.files.get("jd_file")
+    has_updated_file = updated_file and updated_file.filename
+
+    if has_updated_file:
+        suffix = Path(updated_file.filename).suffix.lower()
+        if suffix not in _JD_ALLOWED_SUFFIXES:
+            flash(
+                f"Unsupported file type '{suffix}'. Only PDF or DOCX are accepted.",
+                "danger",
+            )
+            return render_template("edit_jd.html", jd=jd)
+
+        file_bytes = updated_file.read()
+        content_type = _JD_CONTENT_TYPES[suffix]
+        # Use the existing jd_id to build the same deterministic key — this
+        # overwrites the previous S3 object without creating a new one.
+        new_file_key = s3_storage.jd_key(jd_id, suffix)
+
+        try:
+            s3_storage.upload_file(file_bytes, new_file_key, content_type)
+        except Exception as e:
+            flash(f"Could not update JD document in S3: {e}", "danger")
+            return render_template("edit_jd.html", jd=jd)
+
+        try:
+            stored_bytes = s3_storage.download_file(new_file_key)
+            extracted = extract_text_from_bytes(stored_bytes, updated_file.filename)
+        except Exception as e:
+            flash(f"Could not extract text from updated document: {e}", "danger")
+            return render_template("edit_jd.html", jd=jd)
+
+        if not extracted:
+            flash("Could not extract any text from the updated document.", "danger")
+            return render_template("edit_jd.html", jd=jd)
+
+        # Replace all JD document fields with the new upload.
+        jd["jd_text"] = extracted
+        jd["jd_file_key"] = new_file_key
+        jd["jd_original_filename"] = updated_file.filename
+        jd["jd_content_type"] = content_type
+    else:
+        # No replacement file — use the typed text from the form if provided.
+        typed_text = request.form.get("jd_text", "").strip()
+        if typed_text:
+            jd["jd_text"] = typed_text
 
     _save_jds(jds)
     _audit.info("jd.edited", extra={

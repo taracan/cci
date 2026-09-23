@@ -70,7 +70,11 @@ MATCH_TOP_K = _config.get_int("MATCH_TOP_K", 10)
 QUEUE_MAX_CONCURRENT = _config.get_int("QUEUE_MAX_CONCURRENT", 2)
 QUEUE_TTL_SECS = _config.get_int("QUEUE_TTL_SECS", 180)
 
-# Logging / observability
+# --- AWS / S3 ---
+AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "")
+
+# --- Logging / observability ---
 LOG_MAX_BYTES = 10 * 1024 * 1024   # 10 MB per file
 LOG_BACKUP_COUNT = 5
 LOG_LEVEL = _config.get_str("LOG_LEVEL", "INFO")

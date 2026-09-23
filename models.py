@@ -71,6 +71,10 @@ class JobDescription:
     is_active: bool = True
     uploaded_by: str = ""
     created_at: str = ""
+    # S3 storage metadata — optional; absent in records created before S3 support.
+    jd_file_key: Optional[str] = None
+    jd_original_filename: Optional[str] = None
+    jd_content_type: Optional[str] = None
 
     def to_dict(self):
         return {
@@ -85,6 +89,9 @@ class JobDescription:
             "is_active": self.is_active,
             "uploaded_by": self.uploaded_by,
             "created_at": self.created_at,
+            "jd_file_key": self.jd_file_key,
+            "jd_original_filename": self.jd_original_filename,
+            "jd_content_type": self.jd_content_type,
         }
 
     @classmethod

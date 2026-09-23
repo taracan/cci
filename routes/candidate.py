@@ -5,10 +5,11 @@ from pathlib import Path
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 
 from auth import login_required, candidate_required, get_candidate, update_candidate, get_current_user_id
-from config import RESUMES_DIR, PARSED_RESUMES_DIR, JDS_DIR
+from config import PARSED_RESUMES_DIR, JDS_DIR
 from matching_engine import calculate_match
 from vector_matcher import index_resume, semantic_score
 from llm.llm_service import parse_resume_smart
+from storage import s3 as s3_storage
 
 candidate = Blueprint("candidate", __name__, url_prefix="/candidate")
 
@@ -46,7 +47,13 @@ def candidate_dashboard():
 @login_required
 @candidate_required
 def upload_resume():
-    """Upload and parse a resume (PDF or TXT)."""
+    """Upload (or replace) a resume (PDF or TXT).
+
+    Each upload overwrites the same deterministic S3 key for this candidate,
+    so there is never more than one live resume object per candidate.
+    The parsed-resume JSON and the ChromaDB embedding are replaced in the
+    same request, so stale data cannot be matched against after an update.
+    """
     if request.method == "GET":
         return render_template("upload_resume.html")
 
@@ -61,32 +68,48 @@ def upload_resume():
         return render_template("upload_resume.html")
 
     cid = get_current_user_id()
-    save_path = RESUMES_DIR / f"{cid}{suffix}"
-    file.save(str(save_path))
 
-    # Extract raw text, then parse with the LLM (falls back to rule-based inside).
+    # Read file bytes once — used for both S3 upload and text extraction.
+    file_bytes = file.read()
+    original_filename = file.filename
+    content_type = "application/pdf" if suffix == ".pdf" else "text/plain"
+
+    # Build the deterministic key — same candidate always writes to the same
+    # S3 object, so a re-upload silently overwrites the previous document.
+    s3_key = s3_storage.resume_key(cid, suffix)
+
+    # Upload to S3 (private, overwrites any previous object at this key).
     try:
-        from resume_parser import extract_text
-        raw_text = extract_text(save_path)
+        s3_storage.upload_file(file_bytes, s3_key, content_type)
+    except Exception as e:
+        flash(f"Could not store resume in S3: {e}", "danger")
+        return render_template("upload_resume.html")
+
+    # Retrieve from S3 and extract text (validates the upload round-trip).
+    try:
+        from resume_parser import extract_text_from_bytes
+        stored_bytes = s3_storage.download_file(s3_key)
+        raw_text = extract_text_from_bytes(stored_bytes, original_filename)
         parsed = parse_resume_smart(raw_text)
     except Exception as e:
         flash(f"Error parsing resume: {e}", "danger")
         return render_template("upload_resume.html")
 
-    # Save parsed data
+    # Replace parsed-resume JSON on disk (overwrites previous record).
     parsed_path = PARSED_RESUMES_DIR / f"{cid}.json"
     with open(parsed_path, "w") as f:
         json.dump(parsed, f, indent=2)
 
-    # Index the resume text into the vector store for semantic matching.
+    # Upsert resume embedding — ChromaDB uses candidate_id as the document id,
+    # so this always replaces the previous vector; no stale embeddings remain.
     try:
         index_resume(cid, parsed["raw_text"])
     except Exception as e:
-        # Semantic indexing is best-effort; keyword matching still works without it.
+        # Semantic indexing is best-effort; keyword matching still works.
         flash(f"Note: semantic indexing skipped ({e}).", "warning")
 
-    # Update candidate record
-    update_candidate(cid, {"resume_uploaded": True, "resume_file": str(save_path)})
+    # Store the deterministic S3 key in the candidate record.
+    update_candidate(cid, {"resume_uploaded": True, "resume_file": s3_key})
 
     flash(
         f"Resume uploaded! Found {len(parsed['skills'])} skills, "
@@ -139,9 +162,7 @@ def match_jobs():
         )
         matches.append({"jd": jd, "result": result})
 
-    # Sort by overall score descending
     matches.sort(key=lambda x: x["result"]["overall_score"], reverse=True)
-
     return render_template("match_results.html", matches=matches, parsed=parsed, candidate=cand)
 
 
@@ -175,5 +196,4 @@ def match_detail(jd_id):
         jd_title=target_jd["role_title"],
         semantic_score=sem,
     )
-
     return render_template("match_detail.html", jd=target_jd, result=result, parsed=parsed)
