@@ -40,7 +40,7 @@ def patched(monkeypatch):
     # semantic score = higher for higher-index candidates so ordering is predictable.
     sem_scores = {}
 
-    def fake_sem(jd_text, cid):
+    def fake_sem(jd_text, cid, jd_id=None):
         return sem_scores.get(cid, 0.0)
 
     llm_calls = []

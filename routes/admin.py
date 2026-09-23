@@ -245,14 +245,31 @@ def edit_jd(jd_id: str) -> Response | str:
 @admin.route("/jds/<jd_id>/delete", methods=["POST"])
 @login_required
 @admin_required
-def delete_jd(jd_id):
-    """Deactivate a JD (soft delete)."""
-    jds = _load_jds()
-    role_title = None
+def delete_jd(jd_id: str) -> Response:
+    """Deactivate a JD (soft delete) and remove its embedding.
+
+    Args:
+        jd_id: The JD ID to deactivate
+
+    Returns:
+        Response: Redirect to dashboard
+
+    Side Effects:
+        - Sets is_active to False in jds.json
+        - Removes JD embedding from ChromaDB
+        - Logs audit event
+    """
+    jds: list[dict[str, Any]] = _load_jds()
+    role_title: str | None = None
     for j in jds:
         if j["jd_id"] == jd_id:
             j["is_active"] = False
             role_title = j.get("role_title")
+            # Remove JD embedding from vector store
+            try:
+                delete_jd_embedding(jd_id)
+            except Exception as e:
+                _audit.warning(f"Failed to delete JD embedding {jd_id}: {e}")
             break
     _save_jds(jds)
     _audit.info("jd.deactivated", extra={
@@ -266,14 +283,33 @@ def delete_jd(jd_id):
 @admin.route("/jds/<jd_id>/reactivate", methods=["POST"])
 @login_required
 @admin_required
-def reactivate_jd(jd_id):
-    """Reactivate a previously deactivated JD."""
-    jds = _load_jds()
-    role_title = None
+def reactivate_jd(jd_id: str) -> Response:
+    """Reactivate a previously deactivated JD and restore its embedding.
+
+    Args:
+        jd_id: The JD ID to reactivate
+
+    Returns:
+        Response: Redirect to dashboard
+
+    Side Effects:
+        - Sets is_active to True in jds.json
+        - Re-embeds JD text into ChromaDB
+        - Logs audit event
+    """
+    jds: list[dict[str, Any]] = _load_jds()
+    role_title: str | None = None
     for j in jds:
         if j["jd_id"] == jd_id:
             j["is_active"] = True
             role_title = j.get("role_title")
+            # Re-embed the JD when reactivating
+            try:
+                jd_text: str = j.get("jd_text", "")
+                if jd_text.strip():
+                    index_jd(jd_id, jd_text)
+            except Exception as e:
+                _audit.warning(f"Failed to re-index JD {jd_id}: {e}")
             break
     _save_jds(jds)
     _audit.info("jd.reactivated", extra={

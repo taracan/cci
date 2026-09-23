@@ -17,9 +17,11 @@ import vector_matcher
 class _FakeCollection:
     """Minimal stand-in for a ChromaDB collection."""
 
-    def __init__(self, ids_to_distance):
+    def __init__(self, ids_to_distance, embeddings=None):
         # ids_to_distance: {candidate_id: distance}
         self._data = ids_to_distance
+        # embeddings: {id: [embedding_vector]}
+        self._embeddings = embeddings or {}
 
     def count(self):
         return len(self._data)
@@ -28,6 +30,14 @@ class _FakeCollection:
         ids = list(self._data.keys())
         distances = [self._data[i] for i in ids]
         return {"ids": [ids], "distances": [distances]}
+
+    def get(self, ids, include):
+        """Retrieve stored embeddings for JD collection."""
+        embeddings = []
+        for id in ids:
+            if id in self._embeddings:
+                embeddings.append(self._embeddings[id])
+        return {"ids": ids if embeddings else [], "embeddings": embeddings}
 
 
 @pytest.fixture()
@@ -80,6 +90,60 @@ class TestSemanticScore:
         # distance 1 → similarity 1/2 = 0.5 → 50.0
         fake_vectors["resume_collection"] = _FakeCollection({"c1": 1.0})
         assert vector_matcher.semantic_score("jd text", "c1") == 50.0
+
+
+class TestSemanticScoreWithJdId:
+    """Covers the pre-indexed JD embedding retrieval path (jd_id parameter)."""
+
+    def test_uses_stored_jd_embedding_when_present(self, fake_vectors, monkeypatch):
+        # JD collection has a stored embedding for jd1.
+        fake_vectors["jd_collection"] = _FakeCollection(
+            {}, embeddings={"jd1": [0.9, 0.9, 0.9]}
+        )
+        fake_vectors["resume_collection"] = _FakeCollection({"c1": 0.0})
+
+        captured = {}
+        real_embed_text = vector_matcher.embed_text
+
+        def _tracking_embed_text(text):
+            captured["called"] = True
+            return real_embed_text(text)
+
+        monkeypatch.setattr(vector_matcher, "embed_text", _tracking_embed_text)
+
+        score = vector_matcher.semantic_score("jd text", "c1", jd_id="jd1")
+
+        assert score == 100.0
+        # on-demand embedding must NOT be used for the JD side when a stored
+        # embedding is found.
+        assert "called" not in captured
+
+    def test_falls_back_when_jd_id_missing_from_store(self, fake_vectors):
+        # JD collection has no entry for jd_missing -> falls back to on-demand.
+        fake_vectors["jd_collection"] = _FakeCollection({}, embeddings={})
+        fake_vectors["resume_collection"] = _FakeCollection({"c1": 0.0})
+
+        score = vector_matcher.semantic_score("jd text", "c1", jd_id="jd_missing")
+
+        assert score == 100.0  # still scores via on-demand embedding fallback
+
+    def test_falls_back_on_collection_error(self, fake_vectors, monkeypatch):
+        fake_vectors["resume_collection"] = _FakeCollection({"c1": 0.0})
+
+        class _BrokenCollection(_FakeCollection):
+            def get(self, ids, include):
+                raise RuntimeError("chroma unavailable")
+
+        monkeypatch.setattr(vector_matcher, "_get_jd_collection", lambda: _BrokenCollection({}))
+
+        score = vector_matcher.semantic_score("jd text", "c1", jd_id="jd1")
+
+        assert score == 100.0  # gracefully falls back, no exception propagates
+
+    def test_no_jd_id_embeds_on_demand(self, fake_vectors):
+        fake_vectors["resume_collection"] = _FakeCollection({"c1": 0.0})
+        score = vector_matcher.semantic_score("jd text", "c1", jd_id=None)
+        assert score == 100.0
 
 
 class TestIndexResume:

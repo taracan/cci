@@ -226,21 +226,21 @@ def semantic_score(
     if jd_id:
         try:
             jd_collection: Collection = _get_jd_collection()
-            jd_results: dict[str, Any] = jd_collection.query(
-                query_texts=[jd_text],
-                n_results=1,
-                include=["distances"],
-                where={"jd_id": jd_id},
+            # Retrieve pre-stored JD embedding from vector store
+            jd_results: dict[str, Any] = jd_collection.get(
+                ids=[jd_id],
+                include=["embeddings"],
             )
-            if jd_results.get("ids") and jd_results["ids"][0]:
-                jd_embedding = jd_results["embeddings"][0][0]
+            if jd_results.get("embeddings") and len(jd_results["embeddings"]) > 0:
+                jd_embedding = jd_results["embeddings"][0]
+                logger.debug(f"Using pre-indexed JD embedding for {jd_id}")
             else:
                 logger.debug(
                     f"JD {jd_id} not found in vector store, falling back to on-demand embedding"
                 )
                 jd_embedding = embed_text(jd_text)
         except Exception as e:
-            logger.debug(f"Error retrieving JD embedding: {e}, falling back to on-demand")
+            logger.debug(f"Error retrieving JD embedding for {jd_id}: {e}, falling back to on-demand")
             jd_embedding = embed_text(jd_text)
     else:
         jd_embedding = embed_text(jd_text)
