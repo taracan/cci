@@ -1,6 +1,12 @@
 # ---- Secrets & credentials (NEVER commit) ----
 data/admins.json
 .env
+.env.*
+!.env.example
+*.env
+.aws/
+credentials
+credentials.json
 *.pem
 *.key
 
