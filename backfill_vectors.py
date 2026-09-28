@@ -87,7 +87,8 @@ def backfill_jds() -> None:
         try:
             jd_id: str | None = jd.get("jd_id")
             jd_text: str = jd.get("jd_text", "")
-            if jd_id and jd_text.strip():
+            # Deactivated JDs are kept out of the vector store (see delete route).
+            if jd_id and jd_text.strip() and jd.get("is_active", True):
                 index_jd(jd_id, jd_text)
                 count += 1
                 print(f"  ✓ indexed JD {jd_id}")

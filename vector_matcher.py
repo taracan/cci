@@ -6,6 +6,10 @@ are embedded and stored in persistent ChromaDB collections.
 
 The model and client are loaded lazily so importing this module (e.g. during
 tests that don't use semantic search) stays cheap.
+
+Docs:
+  PR changes:   https://claude.ai/artifact/YPTm3fio8tZedHKQaiQ6Du
+  File summary: https://claude.ai/artifact/SGF5LFF67nSCBF2BnNJB8r
 """
 from __future__ import annotations
 
@@ -231,8 +235,11 @@ def semantic_score(
                 ids=[jd_id],
                 include=["embeddings"],
             )
-            if jd_results.get("embeddings") and len(jd_results["embeddings"]) > 0:
-                jd_embedding = jd_results["embeddings"][0]
+            # Chroma returns embeddings as a numpy array, so check length
+            # explicitly — `if array:` raises on multi-element arrays.
+            stored: Any = jd_results.get("embeddings")
+            if stored is not None and len(stored) > 0:
+                jd_embedding = [float(x) for x in stored[0]]
                 logger.debug(f"Using pre-indexed JD embedding for {jd_id}")
             else:
                 logger.debug(

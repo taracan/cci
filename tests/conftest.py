@@ -54,6 +54,34 @@ def _rebuild_engine_for_sqlite_memory():
 _ENGINE = _rebuild_engine_for_sqlite_memory()
 
 
+@pytest.fixture(autouse=True)
+def _isolated_vector_store(tmp_path, monkeypatch):
+    """Keep every test away from the real data/chroma store and MiniLM model.
+
+    Routes call index_jd / index_resume / semantic_score directly, so without
+    this any route test would write vectors into data/chroma and download the
+    embedding model. Chroma is pointed at a per-test tmp dir (created lazily on
+    first use) and the model is replaced by a deterministic fake.
+    """
+    import hashlib
+    import vector_matcher
+
+    class _Vec(list):
+        def tolist(self):
+            return list(self)
+
+    class _FakeModel:
+        def encode(self, text):
+            digest = hashlib.sha256(text.encode()).digest()
+            return _Vec(b / 255.0 for b in digest[:16])
+
+    monkeypatch.setattr(vector_matcher, "CHROMA_DIR", tmp_path / "chroma")
+    monkeypatch.setattr(vector_matcher, "_client", None)
+    monkeypatch.setattr(vector_matcher, "_resume_collection", None)
+    monkeypatch.setattr(vector_matcher, "_jd_collection", None)
+    monkeypatch.setattr(vector_matcher, "_get_model", lambda: _FakeModel())
+
+
 @pytest.fixture()
 def db_session():
     """Create all tables in the shared in-memory DB and yield a session.

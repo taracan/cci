@@ -1,4 +1,9 @@
-"""Admin routes — dashboard, upload JD, manage JDs, view ranked candidates."""
+"""Admin routes — dashboard, upload JD, manage JDs, view ranked candidates.
+
+Docs:
+  PR changes:   https://claude.ai/artifact/YPTm3fio8tZedHKQaiQ6Du
+  File summary: https://claude.ai/artifact/SGF5LFF67nSCBF2BnNJB8r
+"""
 import json
 import uuid
 from datetime import datetime
@@ -8,6 +13,7 @@ from typing import Any
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, Response
 
 from auth import login_required, admin_required, get_all_candidates, get_current_user_id, load_json, save_json
+import config
 from config import JDS_DIR, PARSED_RESUMES_DIR
 from matching_engine import calculate_match
 from models import JobDescription
@@ -149,21 +155,24 @@ def upload_jd() -> Response | str:
         # Generate jd_id early so the deterministic S3 key can be built.
         jd_id = f"jd_{uuid.uuid4().hex[:8]}"
 
-        # Build deterministic key — same jd_id + same extension always writes
-        # to the same S3 object, overwriting any previous upload.
-        jd_file_key = s3_storage.jd_key(jd_id, suffix)
+        if config.S3_BUCKET_NAME:
+            # S3 configured: upload and round-trip download to validate.
+            jd_file_key = s3_storage.jd_key(jd_id, suffix)
+            try:
+                s3_storage.upload_file(file_bytes, jd_file_key, jd_content_type)
+            except Exception as e:
+                flash(f"Could not store JD document in S3: {e}", "danger")
+                return render_template("upload_jd.html")
+            try:
+                file_bytes = s3_storage.download_file(jd_file_key)
+            except Exception as e:
+                flash(f"Could not retrieve JD document from S3: {e}", "danger")
+                return render_template("upload_jd.html")
+        # When S3 is not configured, file_bytes from the upload are used directly.
 
-        # Upload original file to S3 (private, overwrites previous if any).
+        # Extract text from document bytes.
         try:
-            s3_storage.upload_file(file_bytes, jd_file_key, jd_content_type)
-        except Exception as e:
-            flash(f"Could not store JD document in S3: {e}", "danger")
-            return render_template("upload_jd.html")
-
-        # Extract text from the uploaded document bytes.
-        try:
-            stored_bytes = s3_storage.download_file(jd_file_key)
-            jd_text = extract_text_from_bytes(stored_bytes, jd_original_filename)
+            jd_text = extract_text_from_bytes(file_bytes, jd_original_filename)
         except Exception as e:
             flash(f"Could not extract text from JD document: {e}", "danger")
             return render_template("upload_jd.html")
@@ -310,19 +319,26 @@ def edit_jd(jd_id: str) -> Response | str:
 
         file_bytes = updated_file.read()
         content_type = _JD_CONTENT_TYPES[suffix]
-        # Use the existing jd_id to build the same deterministic key — this
-        # overwrites the previous S3 object without creating a new one.
-        new_file_key = s3_storage.jd_key(jd_id, suffix)
+
+        new_file_key = None
+        if config.S3_BUCKET_NAME:
+            # Use the existing jd_id to build the same deterministic key — this
+            # overwrites the previous S3 object without creating a new one.
+            new_file_key = s3_storage.jd_key(jd_id, suffix)
+            try:
+                s3_storage.upload_file(file_bytes, new_file_key, content_type)
+            except Exception as e:
+                flash(f"Could not update JD document in S3: {e}", "danger")
+                return render_template("edit_jd.html", jd=jd)
+            try:
+                file_bytes = s3_storage.download_file(new_file_key)
+            except Exception as e:
+                flash(f"Could not retrieve updated JD document from S3: {e}", "danger")
+                return render_template("edit_jd.html", jd=jd)
+        # When S3 is not configured, file_bytes from the upload are used directly.
 
         try:
-            s3_storage.upload_file(file_bytes, new_file_key, content_type)
-        except Exception as e:
-            flash(f"Could not update JD document in S3: {e}", "danger")
-            return render_template("edit_jd.html", jd=jd)
-
-        try:
-            stored_bytes = s3_storage.download_file(new_file_key)
-            extracted = extract_text_from_bytes(stored_bytes, updated_file.filename)
+            extracted = extract_text_from_bytes(file_bytes, updated_file.filename)
         except Exception as e:
             flash(f"Could not extract text from updated document: {e}", "danger")
             return render_template("edit_jd.html", jd=jd)
@@ -344,11 +360,13 @@ def edit_jd(jd_id: str) -> Response | str:
 
     _save_jds(jds)
 
-    # Re-embed and index in ChromaDB (graceful failure on error)
-    try:
-        index_jd(jd_id, jd["jd_text"])
-    except Exception as e:
-        _audit.warning(f"Failed to re-index JD {jd_id}: {e}")
+    # Re-embed and index in ChromaDB (graceful failure on error). Deactivated
+    # JDs stay out of the vector store; reactivation re-indexes the latest text.
+    if jd.get("is_active", True):
+        try:
+            index_jd(jd_id, jd["jd_text"])
+        except Exception as e:
+            _audit.warning(f"Failed to re-index JD {jd_id}: {e}")
 
     # Audit log
     _audit.info("jd.edited", extra={
@@ -434,6 +452,51 @@ def reactivate_jd(jd_id: str) -> Response:
         "actor": get_current_user_id(), "role": session.get("role", ""),
     })
     flash("JD reactivated.", "success")
+    return redirect(url_for("admin.admin_dashboard"))
+
+
+@admin.route("/jds/<jd_id>/permanent-delete", methods=["POST"])
+@login_required
+@admin_required
+def permanent_delete_jd(jd_id: str) -> Response:
+    """Permanently delete a JD from jds.json and ChromaDB.
+
+    Args:
+        jd_id: The JD ID to permanently remove
+
+    Returns:
+        Response: Redirect to dashboard
+
+    Side Effects:
+        - Removes JD record entirely from jds.json
+        - Removes JD embedding from ChromaDB
+        - Logs audit event
+    """
+    jds: list[dict[str, Any]] = _load_jds()
+    role_title: str | None = None
+    jds_updated = []
+    for j in jds:
+        if j["jd_id"] == jd_id:
+            role_title = j.get("role_title")
+        else:
+            jds_updated.append(j)
+
+    if len(jds_updated) == len(jds):
+        flash("JD not found.", "danger")
+        return redirect(url_for("admin.admin_dashboard"))
+
+    # Remove embedding from ChromaDB
+    try:
+        delete_jd_embedding(jd_id)
+    except Exception as e:
+        _audit.warning(f"Failed to delete JD embedding {jd_id}: {e}")
+
+    _save_jds(jds_updated)
+    _audit.info("jd.permanently_deleted", extra={
+        "jd_id": jd_id, "role_title": role_title,
+        "actor": get_current_user_id(), "role": session.get("role", ""),
+    })
+    flash(f"JD '{role_title}' permanently deleted.", "success")
     return redirect(url_for("admin.admin_dashboard"))
 
 
