@@ -28,6 +28,11 @@ class OllamaClient(LLMClient):
             "model": self.model_id,
             "prompt": prompt,
             "stream": False,
+            # JSON mode: Ollama constrains the output to valid JSON. Every prompt
+            # in llm/prompts.py asks for JSON, and small models (e.g. llama3.2)
+            # otherwise add prose/code fences or trailing commas, which made
+            # llm_service fail with "LLM did not return valid JSON".
+            "format": "json",
             "options": {"temperature": LLM_TEMPERATURE},
         }
         resp = requests.post(url, json=payload, timeout=LLM_TIMEOUT_SECS)

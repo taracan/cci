@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% import "_job_macros.html" as job %}
+{% import "_time.html" as t %}
 {% block title %}All JDs{% endblock %}
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
@@ -10,8 +12,15 @@
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
         <div>
-            <h3>{{ jd.role_title }}</h3>
-            <p style="color: #6b7280;">{{ jd.company }} | {{ jd.location }} | {{ jd.experience_years }} yrs</p>
+            <div class="job-title-row">
+                <h3 class="job-title">{{ jd.role_title }}</h3>
+                {{ job.salary_chip(jd) }}
+            </div>
+            {{ job.meta(jd, short=True) }}
+            <p class="timeline">
+                {{ t.ago(jd.created_at, "Posted ", empty="Posted date unknown") }}
+                {% if jd.get('updated_at') %} · {{ t.ago(jd.updated_at, "Updated ") }}{% endif %}
+            </p>
             <div style="margin-top: 0.5rem;">
                 {% for s in jd.required_skills %}
                     <span class="skill-tag">{{ s }}</span>

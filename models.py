@@ -15,6 +15,9 @@ class Candidate:
     resume_file: str = ""
     role: str = "candidate"
     registered_at: str = ""
+    resume_uploaded_at: str = ""     # UTC, set on every resume (re)upload
+    # Bookmarked jobs: [{"jd_id": ..., "saved_at": ...}], newest first.
+    saved_jobs: list = field(default_factory=list)
 
     def to_dict(self):
         return {
@@ -27,6 +30,8 @@ class Candidate:
             "resume_file": self.resume_file,
             "role": self.role,
             "registered_at": self.registered_at,
+            "resume_uploaded_at": self.resume_uploaded_at,
+            "saved_jobs": self.saved_jobs,
         }
 
     @classmethod
@@ -71,10 +76,21 @@ class JobDescription:
     is_active: bool = True
     uploaded_by: str = ""
     created_at: str = ""
+    # Last change (edit / deactivate / reactivate). None = never changed since posting.
+    updated_at: Optional[str] = None
+    updated_by: Optional[str] = None
+    # Reactivation reposts a JD: created_at resets, the original is kept here.
+    first_posted_at: Optional[str] = None
+    reposted_by: Optional[str] = None
     # S3 storage metadata — optional; absent in records created before S3 support.
     jd_file_key: Optional[str] = None
     jd_original_filename: Optional[str] = None
     jd_content_type: Optional[str] = None
+    # Salary — optional; None means "not disclosed" (see salary.py).
+    salary_min: Optional[int] = None
+    salary_max: Optional[int] = None
+    salary_currency: Optional[str] = None
+    salary_period: Optional[str] = None
 
     def to_dict(self):
         return {
@@ -89,9 +105,17 @@ class JobDescription:
             "is_active": self.is_active,
             "uploaded_by": self.uploaded_by,
             "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "updated_by": self.updated_by,
+            "first_posted_at": self.first_posted_at,
+            "reposted_by": self.reposted_by,
             "jd_file_key": self.jd_file_key,
             "jd_original_filename": self.jd_original_filename,
             "jd_content_type": self.jd_content_type,
+            "salary_min": self.salary_min,
+            "salary_max": self.salary_max,
+            "salary_currency": self.salary_currency,
+            "salary_period": self.salary_period,
         }
 
     @classmethod

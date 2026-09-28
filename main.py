@@ -16,12 +16,20 @@ from routes.admin import admin
 from db.seed import seed
 from observability.request_hooks import register_request_hooks
 from observability.logging_config import get_logger
+from salary import format_salary
+from timefmt import time_ago, iso_utc, utc_label
 
 
 def create_app():
     """Application factory — creates and configures the Flask app."""
     app = Flask(__name__)
     app.secret_key = SECRET_KEY
+    # Templates can write {{ jd|salary }} → "₹12L – ₹18L / yr" (or None).
+    app.jinja_env.filters["salary"] = format_salary
+    # Timestamps: {{ x|ago }} → "3 days ago", {{ x|iso_utc }} → "...Z" (see timefmt.py)
+    app.jinja_env.filters["ago"] = time_ago
+    app.jinja_env.filters["iso_utc"] = iso_utc
+    app.jinja_env.filters["utc_label"] = utc_label
 
     # Initialise DB + seed model registry / roles, and turn on request tracing.
     seed()
