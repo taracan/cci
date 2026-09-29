@@ -646,7 +646,7 @@ class TestResumeUploadLogic:
         """index_resume must call ChromaDB upsert with candidate_id as the doc id,
         guaranteeing the old vector is replaced on re-upload — no duplicates."""
         fake_collection = MagicMock()
-        monkeypatch.setattr("vector_matcher._collection", fake_collection)
+        monkeypatch.setattr("vector_matcher._resume_collection", fake_collection)
         # Provide a fake embed so the model isn't loaded.
         monkeypatch.setattr("vector_matcher.embed_text", lambda t: [0.1, 0.2])
 
@@ -662,7 +662,7 @@ class TestResumeUploadLogic:
         """Calling index_resume twice for the same candidate calls upsert twice
         with the same id — ChromaDB replaces the first vector with the second."""
         fake_collection = MagicMock()
-        monkeypatch.setattr("vector_matcher._collection", fake_collection)
+        monkeypatch.setattr("vector_matcher._resume_collection", fake_collection)
         monkeypatch.setattr("vector_matcher.embed_text", lambda t: [0.0])
 
         from vector_matcher import index_resume
@@ -679,7 +679,7 @@ class TestResumeUploadLogic:
     def test_index_resume_skipped_for_empty_text(self, monkeypatch):
         """index_resume must not call upsert when resume text is blank."""
         fake_collection = MagicMock()
-        monkeypatch.setattr("vector_matcher._collection", fake_collection)
+        monkeypatch.setattr("vector_matcher._resume_collection", fake_collection)
 
         from vector_matcher import index_resume
         index_resume("cand_empty", "   ")

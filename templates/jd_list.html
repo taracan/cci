@@ -39,6 +39,9 @@
             <button type="submit" class="btn btn-success" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;">Reactivate</button>
         </form>
         {% endif %}
+        <form method="POST" action="{{ url_for('admin.permanent_delete_jd', jd_id=jd.jd_id) }}" style="display: inline;" onsubmit="return confirm('Permanently delete this JD? This cannot be undone.');">
+            <button type="submit" class="btn btn-danger" style="padding: 0.3rem 0.8rem; font-size: 0.85rem; background-color: #7f1d1d;">Delete Permanently</button>
+        </form>
     </div>
 </div>
 {% else %}
