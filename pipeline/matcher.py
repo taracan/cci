@@ -47,7 +47,7 @@ def two_stage_match(jd: dict, candidates: list[dict],
             parsed = load_parsed(cid)
             if not parsed:
                 continue
-            sem = semantic_score(jd_text, cid)
+            sem = semantic_score(jd_text, cid, jd.get("jd_id"))
             result = calculate_match(
                 candidate_skills=parsed.get("skills", []),
                 candidate_exp=parsed.get("experience_years", 0),

@@ -163,7 +163,7 @@ def match_jobs():
 
     matches = []
     for jd in active_jds:
-        sem = semantic_score(jd.get("jd_text", ""), cid)
+        sem = semantic_score(jd.get("jd_text", ""), cid, jd.get("jd_id"))
         result = calculate_match(
             candidate_skills=parsed["skills"],
             candidate_exp=parsed["experience_years"],
@@ -225,7 +225,11 @@ def match_detail(jd_id):
         flash("Job description not found.", "danger")
         return redirect(url_for("candidate.match_jobs"))
 
-    sem = semantic_score(target_jd.get("jd_text", ""), cid)
+    sem = semantic_score(
+        target_jd.get("jd_text", ""),
+        cid,
+        target_jd.get("jd_id"),
+    )
     result = calculate_match(
         candidate_skills=parsed["skills"],
         candidate_exp=parsed["experience_years"],
