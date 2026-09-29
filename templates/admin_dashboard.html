@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_time.html" as t %}
 {% block title %}Admin Dashboard{% endblock %}
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
@@ -29,6 +30,8 @@
                 <th>Company</th>
                 <th>Location</th>
                 <th>Experience</th>
+                <th>Posted</th>
+                <th>Updated</th>
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
@@ -40,6 +43,8 @@
                 <td>{{ jd.company }}</td>
                 <td>{{ jd.location }}</td>
                 <td>{{ jd.experience_years }} yrs</td>
+                <td class="nowrap">{{ t.ago(jd.created_at, empty="—") }}</td>
+                <td class="nowrap">{{ t.ago(jd.get('updated_at'), empty="—") }}</td>
                 <td>
                     {% if jd.is_active %}
                         <span class="score-badge score-high">Active</span>
@@ -92,6 +97,7 @@
                 <td>
                     {% if c.get('resume_uploaded') %}
                         <span class="score-badge score-high">Uploaded</span>
+                        {% if c.get('resume_uploaded_at') %}<div class="muted small">{{ t.ago(c.resume_uploaded_at) }}</div>{% endif %}
                     {% else %}
                         <span class="score-badge score-low">Pending</span>
                     {% endif %}

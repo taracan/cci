@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_time.html" as t %}
 {% block title %}JD: {{ jd.role_title }}{% endblock %}
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
@@ -15,8 +16,31 @@
         <tr><td style="width: 180px; font-weight: 600;">Company</td><td>{{ jd.company }}</td></tr>
         <tr><td style="font-weight: 600;">Location</td><td>{{ jd.location }}</td></tr>
         <tr><td style="font-weight: 600;">Experience Required</td><td>{{ jd.experience_years }} years</td></tr>
+        <tr><td style="font-weight: 600;">Salary</td><td>{{ jd|salary or 'Not disclosed' }}</td></tr>
         <tr><td style="font-weight: 600;">Status</td><td>{% if jd.is_active %}<span class="score-badge score-high">Active</span>{% else %}<span class="score-badge score-low">Inactive</span>{% endif %}</td></tr>
-        <tr><td style="font-weight: 600;">Created</td><td>{{ jd.created_at[:10] }}</td></tr>
+        <tr>
+            <td style="font-weight: 600;">Posted</td>
+            <td>
+                {{ t.exact(jd.get('created_at')) }}
+                {% if jd.get('created_at') %}
+                    <span class="muted">({{ jd.created_at|ago }}{% if jd.get('reposted_by') %}, reposted{% if admin_names.get(jd.reposted_by) %} by {{ admin_names[jd.reposted_by] }}{% endif %}{% elif admin_names.get(jd.get('uploaded_by')) %}, by {{ admin_names[jd.uploaded_by] }}{% endif %})</span>
+                {% endif %}
+                {% if jd.get('first_posted_at') %}
+                    <div class="muted small">First posted {{ t.exact(jd.first_posted_at) }}</div>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td style="font-weight: 600;">Last updated</td>
+            <td>
+                {% if jd.get('updated_at') %}
+                    {{ t.exact(jd.updated_at) }}
+                    <span class="muted">({{ jd.updated_at|ago }}{% if admin_names.get(jd.get('updated_by')) %}, by {{ admin_names[jd.updated_by] }}{% endif %})</span>
+                {% else %}
+                    <span class="muted">Not changed since posting</span>
+                {% endif %}
+            </td>
+        </tr>
     </table>
 </div>
 

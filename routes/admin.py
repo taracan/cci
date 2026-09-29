@@ -6,13 +6,11 @@ Docs:
 """
 import json
 import uuid
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, Response
-
-from auth import login_required, admin_required, get_all_candidates, get_current_user_id, load_json, save_json
+from auth import login_required, admin_required, get_all_candidates, get_current_user_id, load_json, save_json, ADMINS_FILE
 import config
 from config import JDS_DIR, PARSED_RESUMES_DIR
 from matching_engine import calculate_match
@@ -22,6 +20,8 @@ from pipeline.matcher import two_stage_match
 from observability.logging_config import get_logger
 from storage import s3 as s3_storage
 from resume_parser import extract_text_from_bytes
+from salary import parse_salary_form
+from timefmt import utc_now_iso
 
 # MIME types accepted for JD file uploads
 _JD_ALLOWED_SUFFIXES = {".pdf", ".docx"}
@@ -63,6 +63,32 @@ def _save_jds(jds: list[dict[str, Any]]) -> None:
         IOError: If file write operation fails.
     """
     save_json(JDS_FILE, jds)
+
+
+def _mark_updated(jd):
+    """Record when and by whom a JD was last changed."""
+    jd["updated_at"] = utc_now_iso()
+    jd["updated_by"] = get_current_user_id()
+
+
+def _mark_reposted(jd):
+    """Reactivation counts as a fresh posting.
+
+    The posted time becomes "now" and the update is cleared, so candidates see
+    "Posted just now". The original posting time is kept once in
+    first_posted_at, and reposted_by records which admin reactivated it.
+    """
+    if not jd.get("first_posted_at"):
+        jd["first_posted_at"] = jd.get("created_at")
+    jd["created_at"] = utc_now_iso()
+    jd["reposted_by"] = get_current_user_id()
+    jd["updated_at"] = None
+    jd["updated_by"] = None
+
+
+def _admin_names():
+    """{admin_id: name} for showing who created/updated a JD."""
+    return {a["admin_id"]: a["name"] for a in load_json(ADMINS_FILE)}
 
 
 @admin.route("/dashboard")
@@ -129,6 +155,12 @@ def upload_jd() -> Response | str:
     # --- Validate structural fields (always required) ---
     if not role_title or not company or not required_skills:
         flash("Please fill all required fields (Role, Company, Required Skills).", "danger")
+        return render_template("upload_jd.html")
+
+    # --- Salary (optional) ---
+    salary_fields, salary_error = parse_salary_form(request.form)
+    if salary_error:
+        flash(salary_error, "danger")
         return render_template("upload_jd.html")
 
     # --- Handle optional file upload ---
@@ -201,10 +233,11 @@ def upload_jd() -> Response | str:
         location=location,
         is_active=True,
         uploaded_by=get_current_user_id(),
-        created_at=datetime.utcnow().isoformat(),
+        created_at=utc_now_iso(),
         jd_file_key=jd_file_key,
         jd_original_filename=jd_original_filename,
         jd_content_type=jd_content_type,
+        **salary_fields,
     )
 
     # Persist to file
@@ -247,7 +280,7 @@ def view_jd(jd_id):
     if not jd:
         flash("JD not found.", "danger")
         return redirect(url_for("admin.admin_dashboard"))
-    return render_template("jd_detail.html", jd=jd)
+    return render_template("jd_detail.html", jd=jd, admin_names=_admin_names())
 
 
 @admin.route("/jds/<jd_id>/edit", methods=["GET", "POST"])
@@ -301,6 +334,12 @@ def edit_jd(jd_id: str) -> Response | str:
     ]
     jd["experience_years"] = int(request.form.get("experience_years", jd["experience_years"]))
     jd["location"] = request.form.get("location", jd["location"]).strip()
+
+    salary_fields, salary_error = parse_salary_form(request.form)
+    if salary_error:
+        flash(salary_error, "danger")
+        return render_template("edit_jd.html", jd=jd)
+    jd.update(salary_fields)
 
     # Optional: admin may supply a replacement document file.
     # If provided, overwrite the same deterministic S3 key and replace jd_text.
@@ -358,6 +397,7 @@ def edit_jd(jd_id: str) -> Response | str:
         if typed_text:
             jd["jd_text"] = typed_text
 
+    _mark_updated(jd)
     _save_jds(jds)
 
     # Re-embed and index in ChromaDB (graceful failure on error). Deactivated
@@ -400,6 +440,7 @@ def delete_jd(jd_id: str) -> Response:
         if j["jd_id"] == jd_id:
             j["is_active"] = False
             role_title = j.get("role_title")
+            _mark_updated(j)
             # Remove JD embedding from vector store
             try:
                 delete_jd_embedding(jd_id)
@@ -438,6 +479,7 @@ def reactivate_jd(jd_id: str) -> Response:
         if j["jd_id"] == jd_id:
             j["is_active"] = True
             role_title = j.get("role_title")
+            _mark_reposted(j)
             # Re-embed the JD when reactivating
             try:
                 jd_text: str = j.get("jd_text", "")

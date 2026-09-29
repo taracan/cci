@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_job_macros.html" as job %}
 {% block title %}Match Detail{% endblock %}
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
@@ -9,8 +10,11 @@
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
         <div>
-            <h3>{{ jd.role_title }}</h3>
-            <p style="color: #6b7280;">{{ jd.company }} | {{ jd.location }} | {{ jd.experience_years }} years required</p>
+            <div class="job-title-row">
+                <h3 class="job-title">{{ jd.role_title }}</h3>
+                {{ job.salary_chip(jd) }}
+            </div>
+            {{ job.meta(jd, posted=True) }}
         </div>
         <span class="score-badge {% if result.overall_score >= 75 %}score-high{% elif result.overall_score >= 50 %}score-mid{% else %}score-low{% endif %}" style="font-size: 1.5rem; padding: 0.5rem 1rem;">
             {{ result.overall_score }}%

@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% import "_job_macros.html" as job %}
+{% import "_time.html" as t %}
 {% block title %}My Profile{% endblock %}
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
@@ -12,18 +15,58 @@
         <tr><td style="width: 200px; font-weight: 600;">Name</td><td>{{ candidate.name }}</td></tr>
         <tr><td style="font-weight: 600;">Email</td><td>{{ candidate.email }}</td></tr>
         <tr><td style="font-weight: 600;">Target Role</td><td>{{ candidate.get('target_role', 'Not set') }}</td></tr>
-        <tr><td style="font-weight: 600;">Registered</td><td>{{ candidate.get('registered_at', '')[:10] }}</td></tr>
+        <tr><td style="font-weight: 600;">Registered</td><td>{{ t.date(candidate.get('registered_at')) }}</td></tr>
         <tr>
             <td style="font-weight: 600;">Resume Status</td>
             <td>
                 {% if candidate.get('resume_uploaded') %}
                     <span class="score-badge score-high">Uploaded</span>
+                    {% if candidate.get('resume_uploaded_at') %}
+                        <span class="muted">&nbsp;· {{ t.ago(candidate.resume_uploaded_at) }}</span>
+                    {% endif %}
                 {% else %}
                     <span class="score-badge score-low">Not uploaded</span>
                 {% endif %}
             </td>
         </tr>
     </table>
+</div>
+
+<div class="card" id="saved-jobs">
+    <h3 style="margin-bottom: 1rem;">Saved Jobs <span class="count-pill">{{ saved|length }}</span></h3>
+    {% if not saved %}
+        <p class="muted">
+            You haven't saved any jobs yet. Use the <strong>Save</strong> button on
+            <a href="{{ url_for('candidate.match_jobs') }}">Find Jobs</a> to keep a shortlist here.
+        </p>
+    {% else %}
+        <ul class="saved-list">
+            {% for s in saved %}
+                {% set jd = s.jd %}
+                <li class="saved-item">
+                    <div>
+                        <div class="saved-title">
+                            {{ jd.role_title }}
+                            {{ job.salary_chip(jd) }}
+                            {% if not jd.get('is_active', True) %}<span class="closed-pill">No longer open</span>{% endif %}
+                        </div>
+                        {% call job.meta(jd, short=True) %}
+                            {% if s.saved_at %}<span>{{ icons.calendar() }}{{ t.ago(s.saved_at, "Saved ") }}</span>{% endif %}
+                        {% endcall %}
+                    </div>
+                    <div class="job-buttons">
+                        <a class="job-link" href="{{ url_for('candidate.match_detail', jd_id=jd.jd_id) }}">View match</a>
+                        <form method="POST" action="{{ url_for('candidate.toggle_save_job', jd_id=jd.jd_id) }}">
+                            <input type="hidden" name="next" value="{{ url_for('candidate.profile') }}#saved-jobs">
+                            <button type="submit" class="btn-save is-saved" aria-pressed="true">
+                                {{ icons.bookmark() }}<span>Remove</span>
+                            </button>
+                        </form>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
 </div>
 
 {% if parsed %}

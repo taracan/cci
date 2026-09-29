@@ -1,7 +1,6 @@
 """Authentication module — password hashing, session management, role-based access."""
 import json
 import uuid
-from datetime import datetime
 from pathlib import Path
 from functools import wraps
 
@@ -10,6 +9,7 @@ from flask import session, flash, redirect, url_for
 
 from config import DATA_DIR, ADMIN_KEY
 from models import Candidate, Admin
+from timefmt import utc_now_iso
 
 
 CANDIDATES_FILE = DATA_DIR / "candidates.json"
@@ -63,7 +63,7 @@ def register_candidate(name, email, password, target_role):
         email=email,
         password_hash=hash_password(password),
         target_role=target_role,
-        registered_at=datetime.utcnow().isoformat(),
+        registered_at=utc_now_iso(),
     )
     candidates.append(candidate.to_dict())
     save_json(CANDIDATES_FILE, candidates)
@@ -87,7 +87,7 @@ def register_admin(name, email, password, admin_key):
         name=name,
         email=email,
         password_hash=hash_password(password),
-        registered_at=datetime.utcnow().isoformat(),
+        registered_at=utc_now_iso(),
     )
     admins.append(admin.to_dict())
     save_json(ADMINS_FILE, admins)

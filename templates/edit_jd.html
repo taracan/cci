@@ -28,6 +28,7 @@
             <label>Location</label>
             <input type="text" name="location" value="{{ jd.location }}">
         </div>
+        {% include "_salary_fields.html" %}
         <div class="form-group">
             <label>Full Job Description *</label>
             <textarea name="jd_text" required>{{ jd.jd_text }}</textarea>
