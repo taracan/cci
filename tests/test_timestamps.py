@@ -84,7 +84,7 @@ def env(tmp_path, monkeypatch):
     parsed_dir = tmp_path / "parsed"
     parsed_dir.mkdir()
     monkeypatch.setattr(cand_routes, "PARSED_RESUMES_DIR", parsed_dir)
-    monkeypatch.setattr(cand_routes, "semantic_score", lambda jd_text, cid: None)
+    monkeypatch.setattr(cand_routes, "semantic_score", lambda *args, **kwargs: None)
 
     import main
     app = main.create_app()
