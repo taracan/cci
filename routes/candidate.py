@@ -1,5 +1,6 @@
 """Candidate routes — dashboard, upload resume, view profile, find matching jobs."""
 import json
+import re
 from pathlib import Path
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
@@ -36,6 +37,84 @@ def _load_all_jds():
         return json.load(f)
 
 
+def _tokenize_role(value):
+    """Return searchable tokens for a role title or target-role string."""
+    if not value:
+        return set()
+    return {token for token in re.findall(r"[A-Za-z0-9+#]+", value.lower()) if len(token) > 2}
+
+
+def _role_suggestion_matches(target_role, jd):
+    """True when a JD is a close role match for the candidate target_role."""
+    target = (target_role or "").strip()
+    if not target:
+        return False
+    jd_title = (jd.get("role_title") or "").strip()
+    if not jd_title:
+        return False
+    target_tokens = _tokenize_role(target)
+    jd_tokens = _tokenize_role(jd_title)
+    skill_tokens = _tokenize_role(" ".join(jd.get("required_skills", []) + jd.get("preferred_skills", [])))
+
+    if target.lower() in jd_title.lower() or jd_title.lower() in target.lower():
+        return True
+    if target_tokens and (target_tokens & jd_tokens or target_tokens & skill_tokens):
+        return True
+    return False
+
+
+def store_resume_for_candidate(candidate_id, file_obj):
+    """Parse and index a resume for a candidate after upload."""
+    if not file_obj or not getattr(file_obj, "filename", None):
+        return False, "Please select a resume file."
+
+    suffix = Path(file_obj.filename).suffix.lower()
+    if suffix not in (".pdf", ".txt"):
+        return False, "Only PDF or TXT files accepted."
+
+    file_bytes = file_obj.read()
+    original_filename = file_obj.filename
+    content_type = "application/pdf" if suffix == ".pdf" else "text/plain"
+    s3_key = s3_storage.resume_key(candidate_id, suffix)
+
+    try:
+        s3_storage.upload_file(file_bytes, s3_key, content_type)
+    except Exception as exc:
+        return False, f"Could not store resume in S3: {exc}"
+
+    try:
+        from resume_parser import extract_text_from_bytes
+        stored_bytes = s3_storage.download_file(s3_key)
+        raw_text = extract_text_from_bytes(stored_bytes, original_filename)
+        parsed = parse_resume_smart(raw_text)
+    except Exception as exc:
+        return False, f"Error parsing resume: {exc}"
+
+    parsed_path = PARSED_RESUMES_DIR / f"{candidate_id}.json"
+    with open(parsed_path, "w") as f:
+        json.dump(parsed, f, indent=2)
+
+    try:
+        index_resume(candidate_id, parsed["raw_text"])
+    except Exception:
+        pass
+
+    update_candidate(candidate_id, {
+        "resume_uploaded": True,
+        "resume_file": s3_key,
+        "resume_uploaded_at": utc_now_iso(),
+    })
+
+    return True, {
+        "parsed": parsed,
+        "message": (
+            f"Resume uploaded! Found {len(parsed['skills'])} skills, "
+            f"{parsed['experience_years']} years experience, "
+            f"education: {parsed['education']}."
+        )
+    }
+
+
 @candidate.route("/dashboard")
 @login_required
 @candidate_required
@@ -61,67 +140,13 @@ def upload_resume():
     if request.method == "GET":
         return render_template("upload_resume.html")
 
-    file = request.files.get("resume")
-    if not file or not file.filename:
-        flash("Please select a file.", "danger")
-        return render_template("upload_resume.html")
-
-    suffix = Path(file.filename).suffix.lower()
-    if suffix not in (".pdf", ".txt"):
-        flash("Only PDF or TXT files accepted.", "danger")
-        return render_template("upload_resume.html")
-
     cid = get_current_user_id()
-
-    # Read file bytes once — used for both S3 upload and text extraction.
-    file_bytes = file.read()
-    original_filename = file.filename
-    content_type = "application/pdf" if suffix == ".pdf" else "text/plain"
-
-    # Build the deterministic key — same candidate always writes to the same
-    # S3 object, so a re-upload silently overwrites the previous document.
-    s3_key = s3_storage.resume_key(cid, suffix)
-
-    # Upload to S3 (private, overwrites any previous object at this key).
-    try:
-        s3_storage.upload_file(file_bytes, s3_key, content_type)
-    except Exception as e:
-        flash(f"Could not store resume in S3: {e}", "danger")
+    file = request.files.get("resume")
+    ok, result = store_resume_for_candidate(cid, file)
+    if not ok:
+        flash(result, "danger")
         return render_template("upload_resume.html")
-
-    # Retrieve from S3 and extract text (validates the upload round-trip).
-    try:
-        from resume_parser import extract_text_from_bytes
-        stored_bytes = s3_storage.download_file(s3_key)
-        raw_text = extract_text_from_bytes(stored_bytes, original_filename)
-        parsed = parse_resume_smart(raw_text)
-    except Exception as e:
-        flash(f"Error parsing resume: {e}", "danger")
-        return render_template("upload_resume.html")
-
-    # Replace parsed-resume JSON on disk (overwrites previous record).
-    parsed_path = PARSED_RESUMES_DIR / f"{cid}.json"
-    with open(parsed_path, "w") as f:
-        json.dump(parsed, f, indent=2)
-
-    # Upsert resume embedding — ChromaDB uses candidate_id as the document id,
-    # so this always replaces the previous vector; no stale embeddings remain.
-    try:
-        index_resume(cid, parsed["raw_text"])
-    except Exception as e:
-        # Semantic indexing is best-effort; keyword matching still works.
-        flash(f"Note: semantic indexing skipped ({e}).", "warning")
-
-    # Store the deterministic S3 key in the candidate record.
-    update_candidate(cid, {"resume_uploaded": True, "resume_file": s3_key,
-                           "resume_uploaded_at": utc_now_iso()})
-
-    flash(
-        f"Resume uploaded! Found {len(parsed['skills'])} skills, "
-        f"{parsed['experience_years']} years experience, "
-        f"education: {parsed['education']}.",
-        "success",
-    )
+    flash(result["message"], "success")
     return redirect(url_for("candidate.candidate_dashboard"))
 
 
@@ -149,17 +174,50 @@ def profile():
 @login_required
 @candidate_required
 def match_jobs():
-    """Find and rank matching jobs based on resume vs all active JDs."""
+    """Show resume-based matches or role-targeted suggestions when no resume exists."""
     cid = get_current_user_id()
-    parsed = _load_parsed_resume(cid)
-
-    if not parsed:
-        flash("Upload your resume first to see job matches.", "warning")
-        return redirect(url_for("candidate.upload_resume"))
-
     cand = get_candidate(cid)
+    parsed = _load_parsed_resume(cid)
     all_jds = _load_all_jds()
     active_jds = [j for j in all_jds if j.get("is_active", True)]
+
+    if not parsed:
+        target_role = (cand or {}).get("target_role", "").strip()
+        if not target_role:
+            flash("Set your target role to browse relevant jobs.", "warning")
+            return redirect(url_for("candidate.candidate_dashboard"))
+
+        matches = []
+        for jd in active_jds:
+            if _role_suggestion_matches(target_role, jd):
+                matches.append({
+                    "jd": jd,
+                    "result": {
+                        "overall_score": 0,
+                        "skill_score": 0,
+                        "experience_score": 0,
+                        "role_score": 0,
+                        "matched_skills": [],
+                        "missing_skills": [],
+                    },
+                    "points": description_points(jd.get("jd_text", "")),
+                })
+
+        facets = job_filters.build_facets(m["jd"] for m in matches)
+        selection = job_filters.read_selection(request.args)
+        shown = job_filters.filter_and_sort(matches, selection)
+
+        chips = job_filters.active_chips(selection, facets)
+        for chip in chips:
+            chip["remove_url"] = _url_without(chip["param"], chip["value"])
+
+        return render_template(
+            "match_results.html", matches=shown, total=len(matches), parsed=None,
+            candidate=cand, saved_ids=saved_jobs.saved_ids(cid),
+            facets=facets, selection=selection, chips=chips,
+            sort_options=job_filters.SORT_OPTIONS, role_suggestions=True,
+            target_role=target_role,
+        )
 
     matches = []
     for jd in active_jds:
@@ -180,8 +238,6 @@ def match_jobs():
             "points": description_points(jd.get("jd_text", "")),
         })
 
-    # Filters: options come from ALL active jobs (so counts don't shrink as you
-    # filter); the selection comes from the URL (?loc=..&exp=..&sal=..&sort=..).
     facets = job_filters.build_facets(m["jd"] for m in matches)
     selection = job_filters.read_selection(request.args)
     shown = job_filters.filter_and_sort(matches, selection)
@@ -194,7 +250,7 @@ def match_jobs():
         "match_results.html", matches=shown, total=len(matches), parsed=parsed,
         candidate=cand, saved_ids=saved_jobs.saved_ids(cid),
         facets=facets, selection=selection, chips=chips,
-        sort_options=job_filters.SORT_OPTIONS,
+        sort_options=job_filters.SORT_OPTIONS, role_suggestions=False,
     )
 
 

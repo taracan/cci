@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% import "_icons.html" as icons %}
 {% import "_job_macros.html" as job %}
-{% block title %}Job Matches{% endblock %}
+{% block title %}{% if role_suggestions %}Role Suggestions{% else %}Job Matches{% endif %}{% endblock %}
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-    <h2>Your Job Matches</h2>
+    <h2>{% if role_suggestions %}Role Suggestions{% else %}Your Job Matches{% endif %}</h2>
     <a href="{{ url_for('candidate.candidate_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
 </div>
 
@@ -88,9 +88,11 @@
                     </div>
                     {{ job.meta(jd, posted=True) }}
                 </div>
+                {% if not role_suggestions %}
                 <span class="score-badge {% if r.overall_score >= 75 %}score-high{% elif r.overall_score >= 50 %}score-mid{% else %}score-low{% endif %}">
                     {{ r.overall_score }}% match
                 </span>
+                {% endif %}
             </header>
 
             {# ---- Description: first few points, rest behind the toggle ---- #}
@@ -113,6 +115,7 @@
                 {% endif %}
             </div>
 
+            {% if not role_suggestions %}
             {# ---- Score breakdown ---- #}
             <div class="job-scores">
                 <div><strong style="color: #2563eb;">{{ r.skill_score }}%</strong><span>Skill match</span></div>
@@ -131,10 +134,13 @@
                 {% for s in r.missing_skills %}<span class="skill-tag missing">{{ s }}</span>{% endfor %}
             </div>
             {% endif %}
+            {% endif %}
 
             {# ---- Actions ---- #}
             <footer class="job-actions">
+                {% if not role_suggestions %}
                 <a class="job-link" href="{{ url_for('candidate.match_detail', jd_id=jd.jd_id) }}">View match details</a>
+                {% endif %}
                 <div class="job-buttons">
                     <form method="POST" action="{{ url_for('candidate.toggle_save_job', jd_id=jd.jd_id) }}" class="save-form">
                         <input type="hidden" name="next" value="{{ request.path }}">

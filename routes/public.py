@@ -1,6 +1,7 @@
 """Public routes — landing page, registration, login, logout, health check."""
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 
+from routes.candidate import store_resume_for_candidate
 from auth import (
     register_candidate,
     register_admin,
@@ -33,6 +34,7 @@ def register():
     target_role = request.form.get("target_role", "").strip()
     role = request.form.get("role", "candidate")
     admin_key = request.form.get("admin_key", "")
+    resume_file = request.files.get("resume")
 
     if not name or not email or not password:
         flash("All fields are required.", "danger")
@@ -45,6 +47,9 @@ def register():
     if role == "admin":
         success, message, user_id = register_admin(name, email, password, admin_key)
     else:
+        if not target_role:
+            flash("Target role is required for candidates.", "danger")
+            return render_template("register.html")
         success, message, user_id = register_candidate(name, email, password, target_role)
 
     if not success:
@@ -53,6 +58,19 @@ def register():
 
     set_session(user_id, name, role)
     flash(message, "success")
+
+    if role == "candidate":
+        if resume_file and resume_file.filename:
+            from flask import session
+            candidate_id = session.get("user_id")
+            ok, result = store_resume_for_candidate(candidate_id, resume_file)
+            if not ok:
+                flash(result, "danger")
+                return redirect(url_for("candidate.candidate_dashboard"))
+            flash(result["message"], "success")
+            return redirect(url_for("candidate.candidate_dashboard"))
+        return redirect(url_for("candidate.match_jobs"))
+
     return redirect(url_for("public.dashboard"))
 
 

@@ -34,13 +34,16 @@
     <div class="card">
         <h2>Actions</h2>
         <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <a href="{{ url_for('candidate.match_jobs') }}" class="btn btn-success">
+                {% if candidate and candidate.get('resume_uploaded') %}Find Matching Jobs{% else %}Browse Role Suggestions{% endif %}
+            </a>
             <a href="{{ url_for('candidate.upload_resume') }}" class="btn btn-primary">
-                {% if candidate and candidate.get('resume_uploaded') %}Re-upload Resume{% else %}Upload Resume{% endif %}
+                {% if candidate and candidate.get('resume_uploaded') %}Re-upload Resume{% else %}Upload Resume Later{% endif %}
             </a>
             {% if candidate and candidate.get('resume_uploaded') %}
-                <a href="{{ url_for('candidate.match_jobs') }}" class="btn btn-success">Find Matching Jobs</a>
+                <p style="color: #6b7280; margin: 0;">Your resume is already on file and will continue to power matching.</p>
             {% else %}
-                <p style="color: #6b7280;">Upload your resume to start matching with jobs.</p>
+                <p style="color: #6b7280; margin: 0;">No resume yet — you can browse jobs by target role and upload a resume later.</p>
             {% endif %}
         </div>
     </div>
