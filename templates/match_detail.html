@@ -4,7 +4,7 @@
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
     <h2>Match Detail</h2>
-    <a href="{{ url_for('candidate.match_jobs') }}" class="btn btn-secondary">Back to All Matches</a>
+    <a href="{{ url_for('candidate.match_jobs', **role_arg) }}" class="btn btn-secondary">Back to All Matches</a>
 </div>
 
 <div class="card">
@@ -15,6 +15,11 @@
                 {{ job.salary_chip(jd) }}
             </div>
             {{ job.meta(jd, posted=True) }}
+            {% if selected_role %}
+                <p class="muted" style="margin-top: 0.4rem; font-size: 0.88rem;">
+                    Scored for target role: <strong style="color: #1d4ed8;">{{ selected_role }}</strong>
+                </p>
+            {% endif %}
         </div>
         <span class="score-badge {% if result.overall_score >= 75 %}score-high{% elif result.overall_score >= 50 %}score-mid{% else %}score-low{% endif %}" style="font-size: 1.5rem; padding: 0.5rem 1rem;">
             {{ result.overall_score }}%

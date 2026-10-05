@@ -36,6 +36,17 @@
                 <div>
                     <h3 style="margin-bottom: 0.3rem;">#{{ loop.index }} {{ c.name }}</h3>
                     <p style="color: #6b7280;">{{ c.email }} | Target: {{ c.get('target_role', 'Not set') }} | {{ p.experience_years }} years exp</p>
+                    {% if item.target_roles|length > 1 %}
+                        <p class="best-role">
+                            {% if r.role_score > 20 %}
+                                Best role match:
+                                {% for role in r.best_roles %}<span class="best-role-tag">{{ role }}</span>{% endfor %}
+                                <span class="muted">{% if r.best_roles|length > 1 %}tied at{% else %}with{% endif %} {{ r.role_score }}% role fit</span>
+                            {% else %}
+                                <span class="muted">None of this candidate's target roles match the job title.</span>
+                            {% endif %}
+                        </p>
+                    {% endif %}
                 </div>
                 <span class="score-badge {% if r.overall_score >= 75 %}score-high{% elif r.overall_score >= 50 %}score-mid{% else %}score-low{% endif %}" style="font-size: 1rem;">
                     {{ r.overall_score }}%

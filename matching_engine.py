@@ -1,4 +1,5 @@
 """Matching engine — scores candidates against JDs."""
+from role_titles import normalize_role, split_target_roles
 
 
 def calculate_skill_score(candidate_skills, required_skills, preferred_skills):
@@ -32,13 +33,40 @@ def calculate_experience_score(candidate_years, required_years):
 
 
 def calculate_role_relevance(candidate_role, jd_role_title):
-    """Calculate role relevance using keyword overlap."""
-    if not candidate_role or not jd_role_title:
-        return 20.0
+    """Calculate role relevance using keyword overlap.
 
-    filler = {"a", "an", "the", "of", "in", "for", "and", "or", "at", "to", "with"}
-    cand_words = set(candidate_role.lower().split()) - filler
-    jd_words = set(jd_role_title.lower().split()) - filler
+    ``candidate_role`` may hold several roles ("Data Analyst, ML Engineer");
+    they are split (see role_titles.split_target_roles), each is scored
+    against the JD title, and the BEST score is returned. Passing one role
+    (e.g. the one picked on Find Jobs) scores just that role.
+
+    Titles are normalised first (see role_titles.py): punctuation is handled
+    and synonyms/abbreviations are mapped to one form, so "Sr. ML Engineer"
+    and "Senior Machine Learning Engineer" count as the same words.
+    """
+    return best_role_match(candidate_role, jd_role_title)[0]
+
+
+def best_role_match(candidate_role, jd_role_title):
+    """Score every target role against the JD title and report the winner(s).
+
+    Returns:
+        (best_score, best_roles): the highest role score, and every role that
+        reached it, in the order the candidate typed them (several when tied).
+        With no roles or no JD title: (20.0, []).
+    """
+    roles = split_target_roles(candidate_role)
+    if not roles or not jd_role_title:
+        return 20.0, []
+    scored = [(role, _single_role_relevance(role, jd_role_title)) for role in roles]
+    best = max(score for _, score in scored)
+    return best, [role for role, score in scored if score == best]
+
+
+def _single_role_relevance(candidate_role, jd_role_title):
+    """Role score for ONE candidate role vs a JD title (20 floor, 100 = same words)."""
+    cand_words = normalize_role(candidate_role)
+    jd_words = normalize_role(jd_role_title)
 
     if not cand_words or not jd_words:
         return 20.0
@@ -68,7 +96,8 @@ def calculate_match(candidate_skills, candidate_exp, candidate_role,
         candidate_skills, jd_required, jd_preferred
     )
     exp_score = calculate_experience_score(candidate_exp, jd_exp)
-    role_score = calculate_role_relevance(candidate_role, jd_title)
+    # With several target roles, the best one counts; best_roles says which.
+    role_score, best_roles = best_role_match(candidate_role, jd_title)
 
     if semantic_score is not None:
         overall = round(
@@ -86,6 +115,7 @@ def calculate_match(candidate_skills, candidate_exp, candidate_role,
         "skill_score": skill_score,
         "experience_score": exp_score,
         "role_score": role_score,
+        "best_roles": best_roles,
         "semantic_score": semantic_score,
         "matched_skills": matched,
         "missing_skills": missing,

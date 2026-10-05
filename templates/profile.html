@@ -14,7 +14,28 @@
     <table>
         <tr><td style="width: 200px; font-weight: 600;">Name</td><td>{{ candidate.name }}</td></tr>
         <tr><td style="font-weight: 600;">Email</td><td>{{ candidate.email }}</td></tr>
-        <tr><td style="font-weight: 600;">Target Role</td><td>{{ candidate.get('target_role', 'Not set') }}</td></tr>
+        <tr id="target-roles">
+            <td style="font-weight: 600; vertical-align: top; padding-top: 0.9rem;">Target Role{% if roles|length > 1 %}s{% endif %}</td>
+            <td>
+                <div class="role-pills">
+                    {% for r in roles %}<span class="role-pill">{{ r }}</span>{% else %}<span class="muted">Not set</span>{% endfor %}
+                </div>
+                <details class="role-edit" {% if edit_roles %}open{% endif %}>
+                    <summary>{{ 'Edit' if roles else 'Add target role' }}</summary>
+                    <form method="POST" action="{{ url_for('candidate.update_target_roles') }}" class="role-edit-form">
+                        <input type="text" name="target_role" maxlength="200"
+                               value="{{ roles|join(', ') }}" placeholder="e.g. Data Analyst, ML Engineer"
+                               aria-label="Target roles" {% if edit_roles %}autofocus{% endif %}>
+                        <input type="hidden" name="next" value="{{ roles_next }}">
+                        <small class="muted">Separate roles with commas. The first one is the default on Find Jobs. Leave empty to clear.</small>
+                        <div class="role-edit-actions">
+                            <button type="submit" class="btn btn-primary">Save</button>
+                            {% if roles_next %}<a href="{{ roles_next }}" class="btn btn-secondary">Cancel</a>{% endif %}
+                        </div>
+                    </form>
+                </details>
+            </td>
+        </tr>
         <tr><td style="font-weight: 600;">Registered</td><td>{{ t.date(candidate.get('registered_at')) }}</td></tr>
         <tr>
             <td style="font-weight: 600;">Resume Status</td>
