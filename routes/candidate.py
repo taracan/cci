@@ -15,6 +15,7 @@ from jd_text import description_points
 import saved_jobs
 import job_filters
 from timefmt import utc_now_iso
+from role_titles import split_target_roles
 
 candidate = Blueprint("candidate", __name__, url_prefix="/candidate")
 
@@ -26,6 +27,20 @@ def _load_parsed_resume(candidate_id):
         return None
     with open(parsed_path) as f:
         return json.load(f)
+
+
+def _role_choice(cand):
+    """The candidate's target roles and the one to score with.
+
+    Roles come from the target-role field typed at registration, split on
+    , ; | or "or" (see role_titles.split_target_roles). The selected role is
+    ?role=... when it is one of them (case-insensitive), otherwise the first
+    role typed. Returns (roles, selected_role); selected_role is "" if none.
+    """
+    roles = split_target_roles((cand or {}).get("target_role", ""))
+    wanted = " ".join(request.args.get("role", "").split()).lower()
+    selected = next((r for r in roles if r.lower() == wanted), roles[0] if roles else "")
+    return roles, selected
 
 
 def _load_all_jds():
@@ -167,7 +182,13 @@ def profile():
         for s in saved_jobs.get_saved(cid)
         if s["jd_id"] in jds_by_id
     ]
-    return render_template("profile.html", candidate=cand, parsed=parsed, saved=saved)
+    return render_template(
+        "profile.html", candidate=cand, parsed=parsed, saved=saved,
+        roles=split_target_roles((cand or {}).get("target_role", "")),
+        edit_roles=request.args.get("edit") == "roles",
+        # Where "Save"/"Cancel" return to, e.g. Find Jobs (same-app paths only).
+        roles_next=_local_path(request.args.get("next", "")),
+    )
 
 
 @candidate.route("/match-jobs")
@@ -177,6 +198,9 @@ def match_jobs():
     """Show resume-based matches or role-targeted suggestions when no resume exists."""
     cid = get_current_user_id()
     cand = get_candidate(cid)
+    # Score for ONE target role at a time: the one picked in the dropdown
+    # (?role=...), or the first role the candidate typed.
+    roles, selected_role = _role_choice(cand)
     parsed = _load_parsed_resume(cid)
     all_jds = _load_all_jds()
     active_jds = [j for j in all_jds if j.get("is_active", True)]
@@ -217,6 +241,9 @@ def match_jobs():
             facets=facets, selection=selection, chips=chips,
             sort_options=job_filters.SORT_OPTIONS, role_suggestions=True,
             target_role=target_role,
+            roles=roles, selected_role=selected_role,
+            role_arg={"role": selected_role} if len(roles) > 1 else {},
+            clear_url=url_for("candidate.match_jobs"),
         )
 
     matches = []
@@ -225,7 +252,7 @@ def match_jobs():
         result = calculate_match(
             candidate_skills=parsed["skills"],
             candidate_exp=parsed["experience_years"],
-            candidate_role=cand.get("target_role", ""),
+            candidate_role=selected_role,
             jd_required=jd["required_skills"],
             jd_preferred=jd.get("preferred_skills", []),
             jd_exp=jd["experience_years"],
@@ -246,11 +273,20 @@ def match_jobs():
     for chip in chips:
         chip["remove_url"] = _url_without(chip["param"], chip["value"])
 
+    # Only put ?role= in links when there is a choice to remember.
+    role_arg = {"role": selected_role} if len(roles) > 1 else {}
+    # "Clear all" drops the filters but keeps the chosen sort and target role.
+    keep = dict(role_arg)
+    if selection["sort"] != "match":
+        keep["sort"] = selection["sort"]
+
     return render_template(
         "match_results.html", matches=shown, total=len(matches), parsed=parsed,
         candidate=cand, saved_ids=saved_jobs.saved_ids(cid),
         facets=facets, selection=selection, chips=chips,
         sort_options=job_filters.SORT_OPTIONS, role_suggestions=False,
+        roles=roles, selected_role=selected_role, role_arg=role_arg,
+        clear_url=url_for("candidate.match_jobs", **keep),
     )
 
 
@@ -281,6 +317,10 @@ def match_detail(jd_id):
         flash("Job description not found.", "danger")
         return redirect(url_for("candidate.match_jobs"))
 
+    # Same role as the Find Jobs card that linked here (?role=...), so the
+    # numbers agree; the first target role when none is given.
+    roles, selected_role = _role_choice(cand)
+
     sem = semantic_score(
         target_jd.get("jd_text", ""),
         cid,
@@ -289,14 +329,18 @@ def match_detail(jd_id):
     result = calculate_match(
         candidate_skills=parsed["skills"],
         candidate_exp=parsed["experience_years"],
-        candidate_role=cand.get("target_role", ""),
+        candidate_role=selected_role,
         jd_required=target_jd["required_skills"],
         jd_preferred=target_jd.get("preferred_skills", []),
         jd_exp=target_jd["experience_years"],
         jd_title=target_jd["role_title"],
         semantic_score=sem,
     )
-    return render_template("match_detail.html", jd=target_jd, result=result, parsed=parsed)
+    return render_template(
+        "match_detail.html", jd=target_jd, result=result, parsed=parsed,
+        roles=roles, selected_role=selected_role,
+        role_arg={"role": selected_role} if len(roles) > 1 else {},
+    )
 
 
 @candidate.route("/jobs/<jd_id>/save", methods=["POST"])
@@ -327,6 +371,45 @@ def toggle_save_job(jd_id):
     if not next_url.startswith("/") or next_url.startswith("//"):
         next_url = url_for("candidate.match_jobs")
     return redirect(next_url)
+
+
+# Longest target-role text accepted from the profile form (all roles together).
+TARGET_ROLE_MAX_LEN = 200
+
+
+@candidate.route("/target-roles", methods=["POST"])
+@login_required
+@candidate_required
+def update_target_roles():
+    """Change the candidate's target role(s) from the Profile page.
+
+    Accepts the same format as registration ("Data Analyst, ML Engineer"),
+    tidies it (split on , ; | or "or", blanks/duplicates dropped) and saves it
+    as "Role A, Role B". An empty value clears the target role. Matching picks
+    up the change immediately; the first role becomes the Find Jobs default.
+    Returns to ?next (a path inside this app) or to the Profile page.
+    """
+    back_to = _local_path(request.form.get("next", ""))
+    next_url = back_to or url_for("candidate.profile") + "#target-roles"
+
+    raw = request.form.get("target_role", "")
+    if len(raw) > TARGET_ROLE_MAX_LEN:
+        flash(f"Target roles are too long (max {TARGET_ROLE_MAX_LEN} characters).", "danger")
+        keep = {"next": back_to} if back_to else {}
+        return redirect(url_for("candidate.profile", edit="roles", **keep) + "#target-roles")
+
+    roles = split_target_roles(raw)
+    update_candidate(get_current_user_id(), {"target_role": ", ".join(roles)})
+    if roles:
+        flash(f"Target role{'s' if len(roles) > 1 else ''} updated: {', '.join(roles)}.", "success")
+    else:
+        flash("Target role cleared. Add one any time to improve your job matches.", "info")
+    return redirect(next_url)
+
+
+def _local_path(url: str) -> str:
+    """Return url if it is a path inside this app ("/..."), else "" (blocks open redirects)."""
+    return url if url.startswith("/") and not url.startswith("//") else ""
 
 
 def _wants_json() -> bool:

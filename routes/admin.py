@@ -22,6 +22,7 @@ from storage import s3 as s3_storage
 from resume_parser import extract_text_from_bytes
 from salary import parse_salary_form
 from timefmt import utc_now_iso
+from role_titles import split_target_roles
 
 # MIME types accepted for JD file uploads
 _JD_ALLOWED_SUFFIXES = {".pdf", ".docx"}
@@ -575,6 +576,9 @@ def candidates_for_jd(jd_id):
     # Two-stage funnel: embeddings shortlist (all) → LLM explanation (top-K).
     model_id = session.get("selected_model")  # UI model picker (Stage 4); None = default
     ranked = two_stage_match(target_jd, candidates, _load_parsed, model_id=model_id)
+    # The card shows which target role won, so the admin needs the full list.
+    for item in ranked:
+        item["target_roles"] = split_target_roles(item["candidate"].get("target_role", ""))
 
     return render_template("ranked_candidates.html", jd=target_jd, ranked=ranked)
 

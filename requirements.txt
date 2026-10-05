@@ -13,3 +13,4 @@ python-docx
 python-dotenv
 watchtower
 boto3
+flasgger==0.9.7.1

@@ -83,6 +83,8 @@ These are arranged as a **two-stage funnel**: cheap embedding and keyword scorin
 - **AI resume parsing** that extracts skills, experience (in years), education and a profile summary
 - **Personal dashboard & profile** showing everything the AI extracted from the resume
 - **Job matching** that ranks every active job description against the candidate's resume
+- **Multiple target roles**: enter several at registration (e.g. `Data Analyst, ML Engineer`) and switch between them with the *Target role* dropdown on Find Jobs; every job is re-scored for the chosen role
+- **Editable target roles**: change, add or clear target roles any time from the Profile page (or *Edit roles* on Find Jobs); matching uses the new roles immediately
 - **Detailed match view** per job: overall score, skill / semantic / experience / role breakdown, matched skills and missing skills
 
 ### 🧑‍💻 For Admins (Recruiters)
@@ -753,7 +755,7 @@ pie showData
 | **Skill** | `matched required skills ÷ total required skills × 100` (case-insensitive) | **+5 bonus** if the candidate has *any* preferred skill (capped at 100). No required skills → 100 |
 | **Semantic** | `1 ÷ (1 + distance) × 100`, where *distance* is between the resume vector and the JD vector in ChromaDB | Identical meaning → close to 100; unrelated → close to 0. Missing vector → no score (Mode B) |
 | **Experience** | `candidate years ÷ required years × 100`, capped at 100 | Meets or exceeds requirement → 100. No requirement → 100 |
-| **Role** | Word overlap between the candidate's target role and the JD title, ignoring filler words (*a, the, of, and…*) | Exact match → 100. Some overlap → `50 + (overlap ÷ all words) × 50`. No overlap or missing → 20 |
+| **Role** | Word overlap between the candidate's target role and the JD title, after normalising both with `role_titles.py`: punctuation is handled (*AI/ML* → *ai ml*, *Sr.* → *sr*, *Node.js* stays one word) and synonyms / abbreviations are mapped to one form (*Machine Learning* → *ml*, *Sr* → *senior*, *Full-Stack* → *fullstack*). Filler words (*a, the, of, and…*) are ignored | Same words → 100. Some overlap → `50 + (overlap ÷ all words) × 50`. No overlap or missing → 20. Add new synonyms to `SYNONYMS` in `role_titles.py`. **Several target roles** (typed at registration, separated by `,` `;` `\|` or "or"; `/` does not split) are scored one at a time: Find Jobs uses the role picked in its *Target role* dropdown (first role by default); admin ranking uses the candidate's best role and names it on the card (*Best role match: ML Engineer*; tied roles are all listed) |
 
 #### Semantic matching details
 
@@ -1819,6 +1821,7 @@ flowchart TD
 ├── models.py                      # Dataclasses: Candidate, Admin, JobDescription, ParsedResume, MatchResult
 ├── resume_parser.py               # PDF / DOCX / TXT → raw text (no parsing rules)
 ├── matching_engine.py             # Skill / experience / role / weighted overall scores
+├── role_titles.py                 # Role-title normalisation: punctuation + synonyms (used by the role score)
 ├── vector_matcher.py              # MiniLM embeddings + ChromaDB: index_resume(), semantic_score()
 ├── backfill_vectors.py            # One-off: embed any parsed resumes missing from ChromaDB
 │
@@ -2449,6 +2452,7 @@ All require login **and** the candidate role.
 | `GET` | `/candidate/profile` | `profile.html` | Full AI-parsed profile |
 | `GET` | `/candidate/match-jobs` | `match_results.html` | All active JDs ranked against the resume |
 | `GET` | `/candidate/match-jobs/<jd_id>` | `match_detail.html` | Score breakdown for one JD |
+| `POST` | `/candidate/target-roles` | Redirect → profile (or `next`) | Change / clear the target role(s) (comma-separated, 200 characters max) |
 
 ### 🧑‍💻 Admin routes (`/admin`)
 

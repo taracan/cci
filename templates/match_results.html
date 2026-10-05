@@ -31,7 +31,43 @@
 {% endmacro %}
 
 {% if total %}
-<form class="filter-bar" method="get" action="{{ url_for('candidate.match_jobs') }}" id="filter-form">
+<form method="get" action="{{ url_for('candidate.match_jobs') }}" id="filter-form">
+{# ---- Target role: every score below is calculated for this role ---- #}
+<div class="role-card">
+{% if roles %}
+    <div class="role-card-main">
+        <span class="role-card-label">Target role</span>
+        {% if roles|length > 1 %}
+            <details class="filter-dd role-dd">
+                <summary class="is-active">{{ selected_role }} {{ icons.chevron_down() }}</summary>
+                <div class="filter-panel" role="radiogroup" aria-label="Target role">
+                    {% for r in roles %}
+                        <label class="filter-option role-option {% if r == selected_role %}is-selected{% endif %}">
+                            <input type="radio" name="role" value="{{ r }}" {% if r == selected_role %}checked{% endif %}>
+                            <span>{{ r }}</span>
+                            <svg class="role-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+                        </label>
+                    {% endfor %}
+                </div>
+            </details>
+        {% else %}
+            <span class="role-single">{{ selected_role }}</span>
+        {% endif %}
+    </div>
+    <span class="role-card-hint">
+        {% if roles|length > 1 %}Scores and ranking are for this role. Pick another to re-match every job.
+        {% else %}Scores and ranking are for this role.{% endif %}
+        <a class="role-edit-link" href="{{ url_for('candidate.profile', edit='roles', next=url_for('candidate.match_jobs')) }}#target-roles">Edit roles</a>
+    </span>
+{% else %}
+    <div class="role-card-main">
+        <span class="role-card-label">Target role</span>
+        <span class="muted">Not set yet. Adding one improves your role-fit scores.</span>
+    </div>
+    <a class="role-edit-link" href="{{ url_for('candidate.profile', edit='roles', next=url_for('candidate.match_jobs')) }}#target-roles">Add target role</a>
+{% endif %}
+</div>
+<div class="filter-bar">
     <div class="filter-group">
         {{ filter_dropdown("Location", "loc", facets.location) }}
         {{ filter_dropdown("Experience", "exp", facets.experience) }}
@@ -46,6 +82,7 @@
         </select>
     </label>
     <noscript><button type="submit" class="btn btn-primary">Apply</button></noscript>
+</div>
 </form>
 
 <div class="filter-summary">
@@ -54,7 +91,7 @@
         <a class="filter-chip" href="{{ c.remove_url }}" title="Remove filter">{{ c.label }} <span aria-hidden="true">×</span></a>
     {% endfor %}
     {% if chips %}
-        <a class="filter-clear" href="{{ url_for('candidate.match_jobs', sort=selection.sort) if selection.sort != 'match' else url_for('candidate.match_jobs') }}">Clear all</a>
+        <a class="filter-clear" href="{{ clear_url }}">Clear all</a>
     {% endif %}
 </div>
 {% endif %}
@@ -67,7 +104,7 @@
     <div class="card">
         <p style="text-align: center; color: #6b7280; padding: 2rem;">
             No jobs match these filters.
-            <a href="{{ url_for('candidate.match_jobs') }}">Clear all filters</a>
+            <a href="{{ clear_url }}">Clear all filters</a>
         </p>
     </div>
 {% else %}
@@ -139,11 +176,11 @@
             {# ---- Actions ---- #}
             <footer class="job-actions">
                 {% if not role_suggestions %}
-                <a class="job-link" href="{{ url_for('candidate.match_detail', jd_id=jd.jd_id) }}">View match details</a>
+                <a class="job-link" href="{{ url_for('candidate.match_detail', jd_id=jd.jd_id, **role_arg) }}">View match details</a>
                 {% endif %}
                 <div class="job-buttons">
                     <form method="POST" action="{{ url_for('candidate.toggle_save_job', jd_id=jd.jd_id) }}" class="save-form">
-                        <input type="hidden" name="next" value="{{ request.path }}">
+                        <input type="hidden" name="next" value="{{ request.full_path }}">
                         <button type="submit" class="btn-save {% if is_saved %}is-saved{% endif %}" aria-pressed="{{ 'true' if is_saved else 'false' }}">
                             {{ icons.bookmark() }}<span class="btn-save-label">{{ 'Saved' if is_saved else 'Save' }}</span>
                         </button>
@@ -185,7 +222,7 @@ document.querySelectorAll('.save-form').forEach(function (form) {
                 btn.setAttribute('aria-pressed', data.saved ? 'true' : 'false');
                 btn.querySelector('.btn-save-label').textContent = data.saved ? 'Saved' : 'Save';
                 showToast(data.saved ? 'Saved — find it on your Profile' : 'Removed from saved jobs');
-            })
+                            })
             .catch(function () { showToast('Could not save right now. Please try again.'); })
             .finally(function () { btn.disabled = false; });
     });

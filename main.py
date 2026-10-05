@@ -7,7 +7,10 @@ Run with:
 
 Then open: http://localhost:5000
 """
+import re
+
 from flask import Flask
+from flasgger import Swagger
 
 from config import SECRET_KEY
 from routes.public import public
@@ -40,6 +43,17 @@ def create_app():
     app.register_blueprint(public)
     app.register_blueprint(candidate)
     app.register_blueprint(admin)
+
+    # Swagger UI at /apidocs/, spec at /apispec.json — lists every route.
+    app.config["SWAGGER"] = {"openapi": "3.0.3", "auth": {},  # auth: flasgger 0.9.7.1 JS fix
+                             "specs": [{"endpoint": "apispec", "route": "/apispec.json"}]}
+    Swagger(app, template={"paths": {
+        re.sub(r"<(?:\w+:)?(\w+)>", r"{\1}", r.rule): {m.lower(): {
+            "tags": [r.endpoint.split(".")[0]],
+            "parameters": [{"name": a, "in": "path", "required": True,
+                            "schema": {"type": "string"}} for a in r.arguments],
+            "responses": {"200": {"description": "OK"}}} for m in r.methods - {"HEAD", "OPTIONS"}}
+        for r in app.url_map.iter_rules() if r.endpoint.split(".")[0] in ("public", "candidate", "admin")}})
 
     return app
 
