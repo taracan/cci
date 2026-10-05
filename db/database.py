@@ -23,9 +23,16 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 
 
 def init_db() -> None:
-    """Create all tables. Import models first so they register on Base."""
-    from db import models_orm  # noqa: F401  (ensures models are registered)
-    Base.metadata.create_all(bind=engine)
+    """Create tables for an in-memory SQLite DB only; never alters a real DB.
+
+    The schema is owned by Alembic: run `alembic upgrade head` to create or
+    update a real database (see alembic/README.md). create_all() is kept only
+    as a non-authoritative convenience for the in-memory SQLite DB the test
+    suite uses, which never persists and is never migrated.
+    """
+    if engine.url.get_backend_name() == "sqlite" and engine.url.database in (None, "", ":memory:"):
+        from db import models_orm  # noqa: F401  (ensures models are registered)
+        Base.metadata.create_all(bind=engine)
 
 
 @contextmanager

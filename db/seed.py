@@ -24,11 +24,14 @@ _SEED_ROLES = [
     {"name": "admin", "permissions": ["*"]},
     {"name": "recruiter", "permissions": ["view_jds", "view_candidates", "rank_candidates"]},
     {"name": "candidate", "permissions": ["upload_resume", "match_jobs", "view_profile"]},
+    # Multi-tenant role names (MULTI_TENANT); mirror admin / candidate for now.
+    {"name": "platform_admin", "permissions": ["*"]},
+    {"name": "job_seeker", "permissions": ["upload_resume", "match_jobs", "view_profile"]},
 ]
 
 
 def seed() -> None:
-    """Create tables (if needed) and insert model + role rows idempotently."""
+    """Insert model + role rows idempotently (schema comes from Alembic)."""
     init_db()
     with get_session() as s:
         for m in _SEED_MODELS:

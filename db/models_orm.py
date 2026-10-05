@@ -1,9 +1,15 @@
-"""SQLAlchemy ORM models: model registry, LLM call log, request trace, RBAC."""
+"""SQLAlchemy ORM models: model registry, LLM call log, request trace, RBAC,
+and the multi-tenant foundation (company, JD ownership, application).
+
+Schema changes go through Alembic — see alembic/README.md.
+"""
 from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import String, Integer, Float, Boolean, Text, DateTime, ForeignKey
+from sqlalchemy import (
+    String, Integer, Float, Boolean, Text, DateTime, ForeignKey, UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.database import Base
@@ -83,7 +89,7 @@ class Role(Base):
     __tablename__ = "role"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(32), unique=True)   # admin|recruiter|candidate
+    name: Mapped[str] = mapped_column(String(32), unique=True)   # admin|recruiter|candidate|platform_admin|job_seeker
     permissions: Mapped[str] = mapped_column(Text, default="[]")  # JSON list
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -106,8 +112,81 @@ class UserAccount(Base):
     role_id: Mapped[int] = mapped_column(ForeignKey("role.id"), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # Tenant for recruiters; null for job seekers and platform admins.
+    company_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("company.company_id", name="fk_user_account_company_id_company"),
+        nullable=True, index=True,
+    )
 
     role: Mapped["Role"] = relationship(back_populates="users")
 
     def __repr__(self) -> str:
         return f"<UserAccount {self.email} active={self.is_active}>"
+
+
+class Company(Base):
+    """A tenant: recruiters and JDs belong to exactly one company."""
+
+    __tablename__ = "company"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    company_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(128))
+    created_by: Mapped[str] = mapped_column(String(64), nullable=True)   # user_id, no FK
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<Company {self.company_id} {self.name}>"
+
+
+class JobDescription(Base):
+    """Tenant ownership record for a JD (identity + owner only).
+
+    JD content still lives in data/jds/jds.json (models.JobDescription), keyed
+    by the same jd_id. Content columns and the JSON backfill come later.
+    """
+
+    __tablename__ = "job_description"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    jd_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    company_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("company.company_id"), nullable=True, index=True
+    )
+    posted_by: Mapped[str] = mapped_column(                 # recruiter user_id
+        String(64), ForeignKey("user_account.user_id"), nullable=True, index=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<JobDescription {self.jd_id} company={self.company_id}>"
+
+
+class Application(Base):
+    """A job seeker's application to a JD (one per JD per candidate)."""
+
+    __tablename__ = "application"
+    __table_args__ = (
+        UniqueConstraint("jd_id", "candidate_id", name="uq_application_jd_id_candidate_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    application_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    jd_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("job_description.jd_id"), index=True
+    )
+    # Existing candidate id (e.g. cand_xxxxxxxx); no FK until candidates move to the DB.
+    candidate_id: Mapped[str] = mapped_column(String(64), index=True)
+    # Copied from the JD at apply time so tenant filters need no join.
+    company_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("company.company_id"), index=True
+    )
+    status: Mapped[str] = mapped_column(String(16), default="applied")  # applied|viewed|shortlisted|rejected|hired
+    applied_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    viewed_by: Mapped[str] = mapped_column(
+        String(64), ForeignKey("user_account.user_id"), nullable=True
+    )
+    status_changed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<Application {self.application_id} jd={self.jd_id} status={self.status}>"

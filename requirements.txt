@@ -5,6 +5,7 @@ bcrypt
 chromadb
 sentence-transformers
 sqlalchemy
+alembic
 requests
 psycopg2-binary
 boto3

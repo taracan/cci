@@ -1,15 +1,19 @@
 """Unit tests for the SQLAlchemy ORM models (db.models_orm).
 
-Covers create + query round-trips and defaults for all five tables:
-ModelRegistry, LlmCall, RequestTrace, Role, UserAccount (incl. the role
-relationship).
+Covers create + query round-trips and defaults for the original five tables
+(ModelRegistry, LlmCall, RequestTrace, Role, UserAccount incl. the role
+relationship) and the multi-tenant foundation (Company, JobDescription,
+Application).
 """
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from db.models_orm import ModelRegistry, LlmCall, RequestTrace, Role, UserAccount
+from db.models_orm import (
+    ModelRegistry, LlmCall, RequestTrace, Role, UserAccount,
+    Company, JobDescription, Application,
+)
 
 
 class TestModelRegistry:
@@ -73,3 +77,46 @@ class TestRoleAndUser:
         assert got.is_active is True           # default
         assert got.role.name == "admin"        # relationship back-populates
         assert got in role.users
+
+
+class TestMultiTenantFoundation:
+    def _company_and_jd(self, db_session):
+        db_session.add(Company(company_id="co_1", name="Acme"))
+        db_session.flush()
+        db_session.add(JobDescription(jd_id="jd_1", company_id="co_1"))
+        db_session.flush()
+
+    def test_user_company_id_is_optional(self, db_session):
+        db_session.add(UserAccount(user_id="u2", email="bob@x.com"))
+        db_session.flush()
+        got = db_session.query(UserAccount).filter_by(user_id="u2").one()
+        assert got.company_id is None          # job seekers have no company
+
+    def test_jd_ownership_columns_are_optional(self, db_session):
+        db_session.add(JobDescription(jd_id="jd_legacy"))
+        db_session.flush()
+        got = db_session.query(JobDescription).filter_by(jd_id="jd_legacy").one()
+        assert got.company_id is None and got.posted_by is None
+
+    def test_application_defaults(self, db_session):
+        self._company_and_jd(db_session)
+        db_session.add(Application(application_id="app_1", jd_id="jd_1",
+                                   candidate_id="cand_1", company_id="co_1"))
+        db_session.flush()
+        got = db_session.query(Application).filter_by(application_id="app_1").one()
+        assert got.status == "applied"         # default
+        assert got.applied_at is not None
+        assert got.viewed_by is None and got.status_changed_at is None
+
+    def test_one_application_per_jd_per_candidate(self, db_session):
+        import pytest
+        from sqlalchemy.exc import IntegrityError
+        self._company_and_jd(db_session)
+        db_session.add(Application(application_id="app_1", jd_id="jd_1",
+                                   candidate_id="cand_1", company_id="co_1"))
+        db_session.flush()
+        db_session.add(Application(application_id="app_2", jd_id="jd_1",
+                                   candidate_id="cand_1", company_id="co_1"))
+        with pytest.raises(IntegrityError):
+            db_session.flush()
+        db_session.rollback()

@@ -63,6 +63,10 @@ DEFAULT_LLM_MODEL = _config.get_str("DEFAULT_LLM_MODEL", "llama3.2:latest")
 LLM_TIMEOUT_SECS = _config.get_int("LLM_TIMEOUT_SECS", 120)
 LLM_TEMPERATURE = _config.get_float("LLM_TEMPERATURE", 0.2)
 
+# Multi-tenant recruiter portal. Off = today's app, unchanged; all new
+# multi-tenant behavior is gated behind this flag.
+MULTI_TENANT = _config.get_bool("MULTI_TENANT", False)
+
 # Matching pipeline
 MATCH_TOP_K = _config.get_int("MATCH_TOP_K", 10)
 
