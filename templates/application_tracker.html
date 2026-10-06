@@ -1,0 +1,44 @@
+{#- Application Tracker (multi-tenant Task 4, R7.1).
+    Rendered by candidate.application_tracker, and only when MULTI_TENANT is on.
+    rows: list of {"app": Application ORM row, "jd": JD dict from jds.json, or None if deleted}. -#}
+{% extends "base.html" %}
+{% import "_time.html" as t %}
+{% block title %}My Applications{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h2>My Applications ({{ rows|length }})</h2>
+    <a href="{{ url_for('candidate.match_jobs') }}" class="btn btn-secondary">Find Jobs</a>
+</div>
+
+{# Status -> badge colour. Recruiter-driven statuses (viewed/shortlisted/...) arrive with Task 5. #}
+{% set badge = {"applied": "score-mid", "viewed": "score-mid", "shortlisted": "score-high",
+                "hired": "score-high", "rejected": "score-low"} %}
+
+<div class="card">
+    {% if not rows %}
+        <p style="color: #6b7280; text-align: center; padding: 2rem;">
+            You haven't applied to any jobs yet. <a href="{{ url_for('candidate.match_jobs') }}">Browse jobs</a>
+        </p>
+    {% else %}
+    <table>
+        <thead>
+            <tr><th>Role</th><th>Company</th><th>Applied</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            {% set a, jd = row.app, row.jd %}
+            <tr>
+                <td>
+                    <strong>{{ jd.role_title if jd else "Job removed" }}</strong>
+                    {% if jd and not jd.get('is_active', True) %}<div class="muted small">No longer open</div>{% endif %}
+                </td>
+                <td>{{ jd.company if jd else "—" }}</td>
+                <td class="nowrap">{{ t.ago(a.applied_at) }}</td>
+                <td><span class="score-badge {{ badge.get(a.status, 'score-mid') }}">{{ a.status|capitalize }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}

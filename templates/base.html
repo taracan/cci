@@ -377,6 +377,8 @@
                     {% else %}
                         <a href="{{ url_for('candidate.candidate_dashboard') }}">Dashboard</a>
                         <a href="{{ url_for('candidate.match_jobs') }}">Find Jobs</a>
+                        {# apply_enabled comes from the candidate blueprint's context processor (MULTI_TENANT only) #}
+                        {% if apply_enabled %}<a href="{{ url_for('candidate.application_tracker') }}">My Applications</a>{% endif %}
                         <a href="{{ url_for('candidate.profile') }}">Profile</a>
                     {% endif %}
                 </div>

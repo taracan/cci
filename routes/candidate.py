@@ -3,8 +3,10 @@ import json
 import re
 from pathlib import Path
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, abort
 
+import config  # read config.MULTI_TENANT per request (not copied at import) so it can be flipped in tests
+import applications
 from auth import login_required, candidate_required, get_candidate, update_candidate, get_current_user_id
 from config import PARSED_RESUMES_DIR, JDS_DIR
 from matching_engine import calculate_match
@@ -415,3 +417,79 @@ def _local_path(url: str) -> str:
 def _wants_json() -> bool:
     """True when the request came from our fetch() call rather than a form."""
     return request.headers.get("X-Requested-With") == "fetch"
+
+
+# ---------------------------------------------------------------------------
+# Functional Apply + Application Tracker (multi-tenant Task 4, R5.1-R5.4, R7.1)
+#
+# Everything below is gated by config.MULTI_TENANT:
+#   flag off -> both endpoints return 404 and the Apply button stays today's
+#               placeholder (no regression);
+#   flag on  -> Apply saves the application on the candidate record in
+#               candidates.json and the tracker lists them.
+# The rules themselves live in applications.py; these views only connect HTTP to it.
+# ---------------------------------------------------------------------------
+
+# Where to send the seeker after each Apply outcome; anything else returns to Find Jobs.
+_AFTER_APPLY = {
+    applications.ApplyOutcome.APPLIED: "candidate.application_tracker",
+    applications.ApplyOutcome.ALREADY_APPLIED: "candidate.application_tracker",
+    applications.ApplyOutcome.NO_RESUME: "candidate.upload_resume",
+}
+
+
+@candidate.context_processor
+def _apply_context():
+    """Give this blueprint's templates the Apply state.
+
+    Returns ``apply_enabled`` (whether the flag is on) and ``applied_ids`` (the
+    JD ids this seeker has already applied to). match_results.html uses them to
+    pick "Apply" or "Applied", and base.html uses them to show the
+    "My Applications" link. With the flag off, nothing reads the applications.
+    """
+    if not (config.MULTI_TENANT and get_current_user_id()):
+        return {"apply_enabled": False}
+    return {
+        "apply_enabled": True,
+        "applied_ids": {a["jd_id"] for a in applications.for_candidate(get_current_user_id())},
+    }
+
+
+@candidate.route("/jobs/<jd_id>/apply", methods=["POST"])
+@login_required
+@candidate_required
+def apply_job(jd_id):
+    """Apply to a job: record the Application, then redirect with a message.
+
+    The rules (JD exists, resume uploaded, JD active, no duplicate, JD has a
+    company) are all checked in applications.apply(). This view looks up the
+    inputs, flashes the outcome's message, and redirects.
+    """
+    if not config.MULTI_TENANT:
+        abort(404)  # flag off: the endpoint behaves as if it does not exist
+
+    cid = get_current_user_id()
+    jd = next((j for j in _load_all_jds() if j["jd_id"] == jd_id), None)
+    outcome = applications.apply(cid, jd, has_resume=_load_parsed_resume(cid) is not None)
+
+    flash(outcome.message, outcome.category)
+    return redirect(url_for(_AFTER_APPLY.get(outcome, "candidate.match_jobs")))
+
+
+@candidate.route("/applications")
+@login_required
+@candidate_required
+def application_tracker():
+    """Application Tracker: the seeker's own applications and their status (R7.1).
+
+    Each application row is paired with its JD from jds.json for the title and
+    company. If the JD was permanently deleted, ``jd`` is None and the template
+    shows "Job removed", so the seeker never loses track of an application.
+    """
+    if not config.MULTI_TENANT:
+        abort(404)
+
+    jds_by_id = {j["jd_id"]: j for j in _load_all_jds()}
+    rows = [{"app": a, "jd": jds_by_id.get(a["jd_id"])}
+            for a in applications.for_candidate(get_current_user_id())]
+    return render_template("application_tracker.html", rows=rows)

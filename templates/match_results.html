@@ -185,7 +185,18 @@
                             {{ icons.bookmark() }}<span class="btn-save-label">{{ 'Saved' if is_saved else 'Save' }}</span>
                         </button>
                     </form>
+                    {# Apply. Flag on (apply_enabled): a real POST form, or a disabled
+                       "Applied" once the seeker has applied. Flag off: today's
+                       placeholder button, wired to the "Applications open soon" toast below. #}
+                    {% if apply_enabled and jd.jd_id in applied_ids %}
+                    <button type="button" class="btn btn-secondary" disabled>Applied</button>
+                    {% elif apply_enabled %}
+                    <form method="POST" action="{{ url_for('candidate.apply_job', jd_id=jd.jd_id) }}">
+                        <button type="submit" class="btn btn-primary">Apply</button>
+                    </form>
+                    {% else %}
                     <button type="button" class="btn btn-primary btn-apply">Apply</button>
+                    {% endif %}
                 </div>
             </footer>
         </article>
