@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% import "_job_macros.html" as job %}
+{% import "_time.html" as t %}
+{% block title %}All JDs{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h2>All Job Descriptions</h2>
+    <a href="{{ url_for('admin.upload_jd') }}" class="btn btn-primary">Upload New JD</a>
+</div>
+
+{% for jd in jds %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+            <div class="job-title-row">
+                <h3 class="job-title">{{ jd.role_title }}</h3>
+                {{ job.salary_chip(jd) }}
+            </div>
+            {{ job.meta(jd, short=True) }}
+            <p class="timeline">
+                {{ t.ago(jd.created_at, "Posted ", empty="Posted date unknown") }}
+                {% if jd.get('updated_at') %} · {{ t.ago(jd.updated_at, "Updated ") }}{% endif %}
+            </p>
+            <div style="margin-top: 0.5rem;">
+                {% for s in jd.required_skills %}
+                    <span class="skill-tag">{{ s }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            {% if jd.is_active %}
+                <span class="score-badge score-high">Active</span>
+            {% else %}
+                <span class="score-badge score-low">Inactive</span>
+            {% endif %}
+        </div>
+    </div>
+    <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+        <a href="{{ url_for('admin.view_jd', jd_id=jd.jd_id) }}" class="btn btn-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;">View</a>
+        <a href="{{ url_for('admin.edit_jd', jd_id=jd.jd_id) }}" class="btn btn-primary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;">Edit</a>
+        <a href="{{ url_for('admin.candidates_for_jd', jd_id=jd.jd_id) }}" class="btn btn-success" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;">Rank Candidates</a>
+        {% if jd.is_active %}
+        <form method="POST" action="{{ url_for('admin.delete_jd', jd_id=jd.jd_id) }}" style="display: inline;">
+            <button type="submit" class="btn btn-danger" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;">Deactivate</button>
+        </form>
+        {% else %}
+        <form method="POST" action="{{ url_for('admin.reactivate_jd', jd_id=jd.jd_id) }}" style="display: inline;">
+            <button type="submit" class="btn btn-success" style="padding: 0.3rem 0.8rem; font-size: 0.85rem;">Reactivate</button>
+        </form>
+        {% endif %}
+        <form method="POST" action="{{ url_for('admin.permanent_delete_jd', jd_id=jd.jd_id) }}" style="display: inline;" onsubmit="return confirm('Permanently delete this JD? This cannot be undone.');">
+            <button type="submit" class="btn btn-danger" style="padding: 0.3rem 0.8rem; font-size: 0.85rem; background-color: #7f1d1d;">Delete Permanently</button>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="card"><p style="color: #6b7280; text-align: center;">No JDs uploaded yet.</p></div>
+{% endfor %}
+{% endblock %}

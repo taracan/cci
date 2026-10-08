@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% import "_job_macros.html" as job %}
+{% block title %}Match Detail{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h2>Match Detail</h2>
+    <a href="{{ url_for('candidate.match_jobs', **role_arg) }}" class="btn btn-secondary">Back to All Matches</a>
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+            <div class="job-title-row">
+                <h3 class="job-title">{{ jd.role_title }}</h3>
+                {{ job.salary_chip(jd) }}
+            </div>
+            {{ job.meta(jd, posted=True) }}
+            {% if selected_role %}
+                <p class="muted" style="margin-top: 0.4rem; font-size: 0.88rem;">
+                    Scored for target role: <strong style="color: #1d4ed8;">{{ selected_role }}</strong>
+                </p>
+            {% endif %}
+        </div>
+        <span class="score-badge {% if result.overall_score >= 75 %}score-high{% elif result.overall_score >= 50 %}score-mid{% else %}score-low{% endif %}" style="font-size: 1.5rem; padding: 0.5rem 1rem;">
+            {{ result.overall_score }}%
+        </span>
+    </div>
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <h3>Score Breakdown</h3>
+        <table>
+            <tr>
+                <td style="font-weight: 600;">Skill Match {% if result.semantic_score is not none %}(40%){% else %}(60%){% endif %}</td>
+                <td style="font-weight: 700; color: #2563eb;">{{ result.skill_score }}%</td>
+            </tr>
+            {% if result.semantic_score is not none %}
+            <tr>
+                <td style="font-weight: 600;">Semantic Match (35% weight)</td>
+                <td style="font-weight: 700; color: #db2777;">{{ result.semantic_score }}%</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <td style="font-weight: 600;">Experience {% if result.semantic_score is not none %}(15%){% else %}(25%){% endif %}</td>
+                <td style="font-weight: 700; color: #059669;">{{ result.experience_score }}%</td>
+            </tr>
+            <tr>
+                <td style="font-weight: 600;">Role Relevance {% if result.semantic_score is not none %}(10%){% else %}(15%){% endif %}</td>
+                <td style="font-weight: 700; color: #7c3aed;">{{ result.role_score }}%</td>
+            </tr>
+            <tr style="border-top: 2px solid #333;">
+                <td style="font-weight: 700;">Overall Score</td>
+                <td style="font-weight: 700; font-size: 1.2rem;">{{ result.overall_score }}%</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3>Skills Analysis</h3>
+        <div style="margin-bottom: 1rem;">
+            <strong>Matched ({{ result.matched_skills|length }}):</strong><br>
+            {% for s in result.matched_skills %}
+                <span class="skill-tag">{{ s }}</span>
+            {% endfor %}
+            {% if not result.matched_skills %}
+                <span style="color: #6b7280;">None</span>
+            {% endif %}
+        </div>
+        <div>
+            <strong>Missing ({{ result.missing_skills|length }}):</strong><br>
+            {% for s in result.missing_skills %}
+                <span class="skill-tag missing">{{ s }}</span>
+            {% endfor %}
+            {% if not result.missing_skills %}
+                <span style="color: #059669;">All skills matched!</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Full Job Description</h3>
+    <p style="white-space: pre-wrap; color: #374151;">{{ jd.jd_text }}</p>
+</div>
+{% endblock %}

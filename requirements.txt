@@ -1,0 +1,16 @@
+flask
+pdfplumber
+pyjwt
+bcrypt
+chromadb
+sentence-transformers
+sqlalchemy
+alembic
+requests
+psycopg2-binary
+boto3
+python-docx
+python-dotenv
+watchtower
+boto3
+flasgger==0.9.7.1

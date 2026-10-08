@@ -1,22 +1,39 @@
-# Secrets
+# ---- Secrets & credentials (NEVER commit) ----
+data/admins.json
 .env
 .env.*
 !.env.example
+*.env
+.aws/
+credentials
+credentials.json
+*.pem
+*.key
 
-# Python
+# ---- Databases & local data ----
+*.db
+*.sqlite
+*.sqlite3
+data/chroma/
+data/resumes/
+data/parsed_resumes/
+
+# ---- Logs ----
+logs/
+*.log
+*.jsonl
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
 .venv/
 venv/
-__pycache__/
-*.pyc
+env/
 .pytest_cache/
+.ipynb_checkpoints/
 
-# Local infra data
-neo4j_data/
-qdrant_data/
-redis_data/
-data/
-
-# OS / editor
+# ---- OS / editor ----
 .DS_Store
 .vscode/
 .idea/

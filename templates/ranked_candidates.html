@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Ranked Candidates{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h2>Candidates for: {{ jd.role_title }}</h2>
+        <p style="color: #6b7280;">{{ jd.company }} | {{ jd.location }} | {{ jd.experience_years }} years required</p>
+    </div>
+    <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary">Back</a>
+</div>
+
+<div class="card" style="margin-bottom: 1rem; padding: 1rem 2rem;">
+    <strong>Required Skills:</strong>
+    {% for s in jd.required_skills %}
+        <span class="skill-tag">{{ s }}</span>
+    {% endfor %}
+    {% if jd.preferred_skills %}
+    <br><strong style="margin-top: 0.5rem; display: inline-block;">Preferred:</strong>
+    {% for s in jd.preferred_skills %}
+        <span class="skill-tag" style="background: #fef3c7; color: #92400e;">{{ s }}</span>
+    {% endfor %}
+    {% endif %}
+</div>
+
+{% if not ranked %}
+    <div class="card">
+        <p style="text-align: center; color: #6b7280; padding: 2rem;">No candidates with uploaded resumes yet.</p>
+    </div>
+{% else %}
+    {% for item in ranked %}
+        {% set c = item.candidate %}
+        {% set r = item.result %}
+        {% set p = item.parsed %}
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h3 style="margin-bottom: 0.3rem;">#{{ loop.index }} {{ c.name }}</h3>
+                    <p style="color: #6b7280;">{{ c.email }} | Target: {{ c.get('target_role', 'Not set') }} | {{ p.experience_years }} years exp</p>
+                    {% if item.target_roles|length > 1 %}
+                        <p class="best-role">
+                            {% if r.role_score > 20 %}
+                                Best role match:
+                                {% for role in r.best_roles %}<span class="best-role-tag">{{ role }}</span>{% endfor %}
+                                <span class="muted">{% if r.best_roles|length > 1 %}tied at{% else %}with{% endif %} {{ r.role_score }}% role fit</span>
+                            {% else %}
+                                <span class="muted">None of this candidate's target roles match the job title.</span>
+                            {% endif %}
+                        </p>
+                    {% endif %}
+                </div>
+                <span class="score-badge {% if r.overall_score >= 75 %}score-high{% elif r.overall_score >= 50 %}score-mid{% else %}score-low{% endif %}" style="font-size: 1rem;">
+                    {{ r.overall_score }}%
+                </span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat({% if r.semantic_score is not none %}4{% else %}3{% endif %}, 1fr); gap: 1rem; margin: 1rem 0; text-align: center;">
+                <div style="padding: 0.5rem; background: #f9fafb; border-radius: 6px;">
+                    <div style="font-size: 1.1rem; font-weight: 700; color: #2563eb;">{{ r.skill_score }}%</div>
+                    <div style="font-size: 0.75rem; color: #6b7280;">Skill Match</div>
+                </div>
+                {% if r.semantic_score is not none %}
+                <div style="padding: 0.5rem; background: #f9fafb; border-radius: 6px;">
+                    <div style="font-size: 1.1rem; font-weight: 700; color: #db2777;">{{ r.semantic_score }}%</div>
+                    <div style="font-size: 0.75rem; color: #6b7280;">Semantic</div>
+                </div>
+                {% endif %}
+                <div style="padding: 0.5rem; background: #f9fafb; border-radius: 6px;">
+                    <div style="font-size: 1.1rem; font-weight: 700; color: #059669;">{{ r.experience_score }}%</div>
+                    <div style="font-size: 0.75rem; color: #6b7280;">Experience</div>
+                </div>
+                <div style="padding: 0.5rem; background: #f9fafb; border-radius: 6px;">
+                    <div style="font-size: 1.1rem; font-weight: 700; color: #7c3aed;">{{ r.role_score }}%</div>
+                    <div style="font-size: 0.75rem; color: #6b7280;">Role Fit</div>
+                </div>
+            </div>
+
+            <div>
+                <strong style="font-size: 0.85rem;">Matched:</strong>
+                {% for s in r.matched_skills %}
+                    <span class="skill-tag">{{ s }}</span>
+                {% endfor %}
+            </div>
+            {% if r.missing_skills %}
+            <div style="margin-top: 0.4rem;">
+                <strong style="font-size: 0.85rem;">Missing:</strong>
+                {% for s in r.missing_skills %}
+                    <span class="skill-tag missing">{{ s }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if item.llm %}
+            <div style="margin-top: 0.8rem; padding: 0.8rem; background: #f5f3ff; border-left: 3px solid #7c3aed; border-radius: 6px;">
+                <strong style="font-size: 0.85rem; color: #6d28d9;">AI Assessment — {{ item.llm.verdict }} ({{ item.llm.overall_score }}%)</strong>
+                <p style="margin-top: 0.3rem; font-size: 0.85rem; color: #374151;">{{ item.llm.reasoning }}</p>
+            </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+{% endif %}
+{% endblock %}

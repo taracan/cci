@@ -1,0 +1,24 @@
+{# Timestamps. Usage:
+     {% import "_time.html" as t %}
+     {{ t.ago(jd.created_at, "Posted ") }}   → "Posted 3 days ago"   (hover: exact local time)
+     {{ t.exact(jd.updated_at) }}            → "Sep 24, 2026, 5:40 PM" in the viewer's time zone
+     {{ t.date(c.registered_at) }}           → "Sep 24, 2026"
+   The text inside <time> is a UTC fallback; the script in base.html swaps in local time. #}
+
+{% macro ago(value, prefix="", empty="") -%}
+{%- if value and value|iso_utc -%}
+<time datetime="{{ value|iso_utc }}" data-local="ago" title="{{ value|utc_label }}">{{ prefix }}{{ value|ago }}</time>
+{%- else -%}{{ empty }}{%- endif -%}
+{%- endmacro %}
+
+{% macro exact(value, empty="—") -%}
+{%- if value and value|iso_utc -%}
+<time datetime="{{ value|iso_utc }}" data-local="datetime">{{ value|utc_label }}</time>
+{%- else -%}{{ empty }}{%- endif -%}
+{%- endmacro %}
+
+{% macro date(value, empty="—") -%}
+{%- if value and value|iso_utc -%}
+<time datetime="{{ value|iso_utc }}" data-local="date">{{ value|utc_label(False) }}</time>
+{%- else -%}{{ empty }}{%- endif -%}
+{%- endmacro %}

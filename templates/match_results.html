@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% import "_job_macros.html" as job %}
+{% block title %}{% if role_suggestions %}Role Suggestions{% else %}Job Matches{% endif %}{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h2>{% if role_suggestions %}Role Suggestions{% else %}Your Job Matches{% endif %}</h2>
+    <a href="{{ url_for('candidate.candidate_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+{# ---------------- Filter bar ---------------- #}
+{% macro filter_dropdown(title, param, options) %}
+    {% set chosen = selection[param] %}
+    <details class="filter-dd">
+        <summary class="{% if chosen %}is-active{% endif %}">
+            {{ title }}{% if chosen %} <span class="filter-count">{{ chosen|length }}</span>{% endif %}
+            {{ icons.chevron_down() }}
+        </summary>
+        <div class="filter-panel">
+            {% for o in options %}
+                <label class="filter-option">
+                    <input type="checkbox" name="{{ param }}" value="{{ o.key }}" {% if o.key in chosen %}checked{% endif %}>
+                    <span>{{ o.label }}</span>
+                    <span class="filter-num">{{ o.count }}</span>
+                </label>
+            {% else %}
+                <p class="muted" style="padding: 0.4rem 0.6rem;">No options yet</p>
+            {% endfor %}
+        </div>
+    </details>
+{% endmacro %}
+
+{% if total %}
+<form method="get" action="{{ url_for('candidate.match_jobs') }}" id="filter-form">
+{# ---- Target role: every score below is calculated for this role ---- #}
+<div class="role-card">
+{% if roles %}
+    <div class="role-card-main">
+        <span class="role-card-label">Target role</span>
+        {% if roles|length > 1 %}
+            <details class="filter-dd role-dd">
+                <summary class="is-active">{{ selected_role }} {{ icons.chevron_down() }}</summary>
+                <div class="filter-panel" role="radiogroup" aria-label="Target role">
+                    {% for r in roles %}
+                        <label class="filter-option role-option {% if r == selected_role %}is-selected{% endif %}">
+                            <input type="radio" name="role" value="{{ r }}" {% if r == selected_role %}checked{% endif %}>
+                            <span>{{ r }}</span>
+                            <svg class="role-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+                        </label>
+                    {% endfor %}
+                </div>
+            </details>
+        {% else %}
+            <span class="role-single">{{ selected_role }}</span>
+        {% endif %}
+    </div>
+    <span class="role-card-hint">
+        {% if roles|length > 1 %}Scores and ranking are for this role. Pick another to re-match every job.
+        {% else %}Scores and ranking are for this role.{% endif %}
+        <a class="role-edit-link" href="{{ url_for('candidate.profile', edit='roles', next=url_for('candidate.match_jobs')) }}#target-roles">Edit roles</a>
+    </span>
+{% else %}
+    <div class="role-card-main">
+        <span class="role-card-label">Target role</span>
+        <span class="muted">Not set yet. Adding one improves your role-fit scores.</span>
+    </div>
+    <a class="role-edit-link" href="{{ url_for('candidate.profile', edit='roles', next=url_for('candidate.match_jobs')) }}#target-roles">Add target role</a>
+{% endif %}
+</div>
+<div class="filter-bar">
+    <div class="filter-group">
+        {{ filter_dropdown("Location", "loc", facets.location) }}
+        {{ filter_dropdown("Experience", "exp", facets.experience) }}
+        {{ filter_dropdown("Salary", "sal", facets.salary) }}
+    </div>
+    <label class="sort-select">
+        <span>Sort by</span>
+        <select name="sort">
+            {% for key, label in sort_options %}
+                <option value="{{ key }}" {% if selection.sort == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <noscript><button type="submit" class="btn btn-primary">Apply</button></noscript>
+</div>
+</form>
+
+<div class="filter-summary">
+    <span>Showing <strong>{{ matches|length }}</strong> of {{ total }} jobs</span>
+    {% for c in chips %}
+        <a class="filter-chip" href="{{ c.remove_url }}" title="Remove filter">{{ c.label }} <span aria-hidden="true">×</span></a>
+    {% endfor %}
+    {% if chips %}
+        <a class="filter-clear" href="{{ clear_url }}">Clear all</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if not total %}
+    <div class="card">
+        <p style="text-align: center; color: #6b7280; padding: 2rem;">No job descriptions available yet. Check back later.</p>
+    </div>
+{% elif not matches %}
+    <div class="card">
+        <p style="text-align: center; color: #6b7280; padding: 2rem;">
+            No jobs match these filters.
+            <a href="{{ clear_url }}">Clear all filters</a>
+        </p>
+    </div>
+{% else %}
+    {% for item in matches %}
+        {% set jd = item.jd %}
+        {% set r = item.result %}
+        {% set points = item.points %}
+        {% set is_saved = jd.jd_id in saved_ids %}
+        {% set preview = 2 %}  {# points shown before "Show more" #}
+
+        <article class="card job-card">
+            {# ---- Header: title, meta row, score ---- #}
+            <header class="job-head">
+                <div>
+                    <div class="job-title-row">
+                        <h3 class="job-title">{{ jd.role_title }}</h3>
+                        {{ job.salary_chip(jd) }}
+                    </div>
+                    {{ job.meta(jd, posted=True) }}
+                </div>
+                {% if not role_suggestions %}
+                <span class="score-badge {% if r.overall_score >= 75 %}score-high{% elif r.overall_score >= 50 %}score-mid{% else %}score-low{% endif %}">
+                    {{ r.overall_score }}% match
+                </span>
+                {% endif %}
+            </header>
+
+            {# ---- Description: first few points, rest behind the toggle ---- #}
+            <div class="job-desc">
+                {% if points %}
+                    <ul class="job-points">
+                        {% for p in points %}
+                            <li {% if loop.index > preview %}class="job-point-extra" hidden{% endif %}>{{ p }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% if points|length > preview %}
+                        <button type="button" class="job-toggle" aria-expanded="false"
+                                data-more="Show {{ points|length - preview }} more" data-less="Show less">
+                            <span class="job-toggle-label">Show {{ points|length - preview }} more</span>
+                            {{ icons.chevron_down() }}
+                        </button>
+                    {% endif %}
+                {% else %}
+                    <p class="job-desc-empty">No description has been added for this role yet.</p>
+                {% endif %}
+            </div>
+
+            {% if not role_suggestions %}
+            {# ---- Score breakdown ---- #}
+            <div class="job-scores">
+                <div><strong style="color: #2563eb;">{{ r.skill_score }}%</strong><span>Skill match</span></div>
+                <div><strong style="color: #059669;">{{ r.experience_score }}%</strong><span>Experience</span></div>
+                <div><strong style="color: #7c3aed;">{{ r.role_score }}%</strong><span>Role fit</span></div>
+            </div>
+
+            <div class="job-skills">
+                <strong>Matched:</strong>
+                {% for s in r.matched_skills %}<span class="skill-tag">{{ s }}</span>{% endfor %}
+                {% if not r.matched_skills %}<span class="muted">None</span>{% endif %}
+            </div>
+            {% if r.missing_skills %}
+            <div class="job-skills">
+                <strong>Missing:</strong>
+                {% for s in r.missing_skills %}<span class="skill-tag missing">{{ s }}</span>{% endfor %}
+            </div>
+            {% endif %}
+            {% endif %}
+
+            {# ---- Actions ---- #}
+            <footer class="job-actions">
+                {% if not role_suggestions %}
+                <a class="job-link" href="{{ url_for('candidate.match_detail', jd_id=jd.jd_id, **role_arg) }}">View match details</a>
+                {% endif %}
+                <div class="job-buttons">
+                    <form method="POST" action="{{ url_for('candidate.toggle_save_job', jd_id=jd.jd_id) }}" class="save-form">
+                        <input type="hidden" name="next" value="{{ request.full_path }}">
+                        <button type="submit" class="btn-save {% if is_saved %}is-saved{% endif %}" aria-pressed="{{ 'true' if is_saved else 'false' }}">
+                            {{ icons.bookmark() }}<span class="btn-save-label">{{ 'Saved' if is_saved else 'Save' }}</span>
+                        </button>
+                    </form>
+                    {# Apply. Flag on (apply_enabled): a real POST form, or a disabled
+                       "Applied" once the seeker has applied. Flag off: today's
+                       placeholder button, wired to the "Applications open soon" toast below. #}
+                    {% if apply_enabled and jd.jd_id in applied_ids %}
+                    <button type="button" class="btn btn-secondary" disabled>Applied</button>
+                    {% elif apply_enabled %}
+                    <form method="POST" action="{{ url_for('candidate.apply_job', jd_id=jd.jd_id) }}">
+                        <button type="submit" class="btn btn-primary">Apply</button>
+                    </form>
+                    {% else %}
+                    <button type="button" class="btn btn-primary btn-apply">Apply</button>
+                    {% endif %}
+                </div>
+            </footer>
+        </article>
+    {% endfor %}
+{% endif %}
+
+<div class="toast" role="status" aria-live="polite"></div>
+
+<script>
+// Show / hide the extra description points on a card.
+document.querySelectorAll('.job-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var open = btn.getAttribute('aria-expanded') === 'true';
+        btn.closest('.job-desc').querySelectorAll('.job-point-extra').forEach(function (li) {
+            li.hidden = open;
+        });
+        btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+        btn.querySelector('.job-toggle-label').textContent = open ? btn.dataset.more : btn.dataset.less;
+    });
+});
+
+// Save / unsave without reloading the page. If JavaScript is off, the form
+// still posts normally and the server redirects back here.
+document.querySelectorAll('.save-form').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var btn = form.querySelector('.btn-save');
+        btn.disabled = true;
+        fetch(form.action, { method: 'POST', headers: { 'X-Requested-With': 'fetch' } })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.error) { showToast(data.error); return; }
+                btn.classList.toggle('is-saved', data.saved);
+                btn.setAttribute('aria-pressed', data.saved ? 'true' : 'false');
+                btn.querySelector('.btn-save-label').textContent = data.saved ? 'Saved' : 'Save';
+                showToast(data.saved ? 'Saved — find it on your Profile' : 'Removed from saved jobs');
+                            })
+            .catch(function () { showToast('Could not save right now. Please try again.'); })
+            .finally(function () { btn.disabled = false; });
+    });
+});
+
+// Filters: apply as soon as a box is ticked or the sort changes.
+var filterForm = document.getElementById('filter-form');
+if (filterForm) {
+    filterForm.addEventListener('change', function () { filterForm.submit(); });
+    // Only one dropdown open at a time; click outside closes them.
+    var dds = filterForm.querySelectorAll('.filter-dd');
+    dds.forEach(function (dd) {
+        dd.addEventListener('toggle', function () {
+            if (dd.open) dds.forEach(function (o) { if (o !== dd) o.open = false; });
+        });
+    });
+    document.addEventListener('click', function (e) {
+        if (!filterForm.contains(e.target)) dds.forEach(function (d) { d.open = false; });
+    });
+}
+
+// Apply is a placeholder for now.
+document.querySelectorAll('.btn-apply').forEach(function (btn) {
+    btn.addEventListener('click', function () { showToast('Applications open soon.'); });
+});
+
+function showToast(msg) {
+    var t = document.querySelector('.toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function () { t.classList.remove('show'); }, 2500);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,23 @@
+{# Salary inputs shared by upload_jd.html and edit_jd.html.
+   Usage:  {% include "_salary_fields.html" %}   (uses `jd` if it exists, for edit) #}
+{% set _jd = jd if jd is defined else {} %}
+<div class="form-group">
+    <label>Salary range (optional)</label>
+    <div class="salary-inputs">
+        <input type="text" name="salary_min" inputmode="numeric" placeholder="Min, e.g. 1200000"
+               value="{{ _jd.get('salary_min') if _jd.get('salary_min') is not none else '' }}">
+        <span class="salary-dash">to</span>
+        <input type="text" name="salary_max" inputmode="numeric" placeholder="Max, e.g. 1800000"
+               value="{{ _jd.get('salary_max') if _jd.get('salary_max') is not none else '' }}">
+        <select name="salary_currency" aria-label="Currency">
+            {% for code in ['INR', 'USD', 'EUR', 'GBP'] %}
+                <option value="{{ code }}" {% if (_jd.get('salary_currency') or 'INR') == code %}selected{% endif %}>{{ code }}</option>
+            {% endfor %}
+        </select>
+        <select name="salary_period" aria-label="Period">
+            <option value="year" {% if (_jd.get('salary_period') or 'year') == 'year' %}selected{% endif %}>per year</option>
+            <option value="month" {% if _jd.get('salary_period') == 'month' %}selected{% endif %}>per month</option>
+        </select>
+    </div>
+    <small style="color: #666;">Full amounts, no symbols. Leave both blank to show “Salary not disclosed”.</small>
+</div>

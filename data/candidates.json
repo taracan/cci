@@ -1,0 +1,46 @@
+[
+  {
+    "candidate_id": "cand_258f32ff",
+    "name": "hemanthkumar yegireddy",
+    "email": "hemanthyegireddyad@gmail.com",
+    "password_hash": "$2b$12$Ho4BX7jJDP..9lgZChmCjexB99eKbK1xZXEFaE1eBmb4B/tToVsUG",
+    "target_role": "ML Engineer",
+    "resume_uploaded": true,
+    "resume_file": "/Users/hemanthyegireddy/Desktop/CCI-AI-Training/resume_jd_portal/data/resumes/cand_258f32ff.pdf",
+    "role": "candidate",
+    "registered_at": "2026-08-18T14:14:19.755143"
+  },
+  {
+    "candidate_id": "cand_7f155569",
+    "name": "hemanth",
+    "email": "hemanth@gmail.com",
+    "password_hash": "$2b$12$DKVJmtH3QU6Au3mQgt9RyeKxSqbPIwMbgoDAHvVamZNm3hRfmmtXC",
+    "target_role": "ML Engineer",
+    "resume_uploaded": false,
+    "resume_file": "",
+    "role": "candidate",
+    "registered_at": "2026-08-18T15:46:45.249595"
+  },
+  {
+    "candidate_id": "cand_b3746061",
+    "name": "harish",
+    "email": "harish@gmail.com",
+    "password_hash": "$2b$12$pwZqVnHi3NTVWIc6fX4Xt.m8h1j8FMJcMJ/3ooLmAFcR5QCchTYja",
+    "target_role": "AI developer",
+    "resume_uploaded": true,
+    "resume_file": "/Users/hemanthyegireddy/Desktop/CCI-AI-Training/resume_jd_portal/data/resumes/cand_b3746061.pdf",
+    "role": "candidate",
+    "registered_at": "2026-09-16T14:12:11.283600"
+  },
+  {
+    "candidate_id": "cand_08ac6310",
+    "name": "Test User",
+    "email": "logtest_1789568299@x.com",
+    "password_hash": "$2b$12$rvb85nXgmuMtew8gPeJK9eIaa2n3ToAEod6tHys/ZV8Ol5rwY6B3m",
+    "target_role": "Python Developer",
+    "resume_uploaded": false,
+    "resume_file": "",
+    "role": "candidate",
+    "registered_at": "2026-09-16T14:18:20.002807"
+  }
+]

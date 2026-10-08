@@ -1,0 +1,27 @@
+{# Reusable job snippets. Usage:
+     {% import "_job_macros.html" as job %}
+     {{ job.meta(jd) }}          company · location · experience, with icons
+     {{ job.meta(jd, posted=True) }}   …plus "Posted 3 days ago · Updated 1 day ago"
+     {{ job.salary_chip(jd) }}   salary, or the "not disclosed" placeholder #}
+{% import "_icons.html" as icons %}
+{% import "_time.html" as t %}
+
+{% macro meta(jd, short=False, posted=False) -%}
+<div class="job-meta">
+    <span>{{ icons.building() }}{{ jd.company }}</span>
+    <span>{{ icons.pin() }}{{ jd.location or 'Not specified' }}</span>
+    <span>{{ icons.briefcase() }}{{ jd.experience_years }}+ yrs{% if not short %} experience{% endif %}</span>
+    {% if posted and jd.created_at %}
+        <span>{{ icons.clock() }}{{ t.ago(jd.created_at, "Posted ") }}{% if jd.get('updated_at') %}&nbsp;·&nbsp;{{ t.ago(jd.updated_at, "Updated ") }}{% endif %}</span>
+    {% endif %}
+    {{ caller() if caller is defined else '' }}
+</div>
+{%- endmacro %}
+
+{% macro salary_chip(jd) -%}
+{% set text = jd|salary %}
+<span class="salary-chip {% if not text %}salary-empty{% endif %}"
+      title="{{ 'Salary' if text else 'Salary not disclosed yet' }}">
+    {{ icons.banknote() }}{{ text or 'Salary not disclosed' }}
+</span>
+{%- endmacro %}

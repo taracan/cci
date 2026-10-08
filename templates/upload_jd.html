@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Upload JD{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 650px; margin: 2rem auto;">
+    <h2>Upload Job Description</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">
+        Fill in the details below. Provide either a <strong>typed description</strong>
+        or upload a <strong>PDF / DOCX file</strong> — at least one is required.
+    </p>
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label>Role Title *</label>
+            <input type="text" name="role_title" required placeholder="e.g. Python Backend Developer">
+        </div>
+        <div class="form-group">
+            <label>Company *</label>
+            <input type="text" name="company" required placeholder="e.g. TechCorp">
+        </div>
+        <div class="form-group">
+            <label>Required Skills * (comma separated)</label>
+            <input type="text" name="required_skills" required placeholder="Python, FastAPI, AWS, Docker">
+        </div>
+        <div class="form-group">
+            <label>Preferred Skills (comma separated)</label>
+            <input type="text" name="preferred_skills" placeholder="Kubernetes, Terraform, Redis">
+        </div>
+        <div class="form-group">
+            <label>Experience Required (years) *</label>
+            <input type="number" name="experience_years" required min="0" max="30" value="2">
+        </div>
+        <div class="form-group">
+            <label>Location</label>
+            <input type="text" name="location" placeholder="e.g. Hyderabad, Remote" value="Remote">
+        </div>
+        {% include "_salary_fields.html" %}
+
+        <hr style="margin: 1.5rem 0;">
+        <p style="font-weight: 600; margin-bottom: 0.5rem;">
+            Job Description content <span style="color: #c00;">*</span>
+            &nbsp;—&nbsp; type text below <em>or</em> upload a document (not both required).
+        </p>
+
+        <div class="form-group">
+            <label>Upload PDF or DOCX (optional)</label>
+            <input type="file" name="jd_file" accept=".pdf,.docx"
+                   style="display: block; margin-top: 0.3rem;">
+            <small style="color: #666;">
+                If a file is uploaded it will be stored securely and its text
+                extracted automatically. Typed text below will be ignored.
+            </small>
+        </div>
+
+        <div class="form-group">
+            <label>Full Job Description (paste text — required if no file uploaded)</label>
+            <textarea name="jd_text" placeholder="Paste the complete job description here..."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.8rem;">
+            Upload JD
+        </button>
+    </form>
+</div>
+{% endblock %}

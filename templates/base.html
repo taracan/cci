@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Resume-JD Portal{% endblock %}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        nav {
+            background: #1a1a2e;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        nav .logo { color: #fff; font-size: 1.3rem; font-weight: 700; text-decoration: none; }
+        nav .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+        nav a { color: #ccc; text-decoration: none; font-size: 0.9rem; }
+        nav a:hover { color: #fff; }
+        nav .user-badge {
+            background: #16213e;
+            color: #4fc3f7;
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        .container { max-width: 1100px; margin: 2rem auto; padding: 0 1.5rem; }
+        .flash { padding: 0.8rem 1.2rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
+        .flash.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash.danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .flash.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .flash.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+        }
+        .card h2 { margin-bottom: 1rem; color: #1a1a2e; }
+        .btn {
+            display: inline-block;
+            padding: 0.6rem 1.5rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #2563eb; color: #fff; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-success { background: #059669; color: #fff; }
+        .btn-success:hover { background: #047857; }
+        .btn-danger { background: #dc2626; color: #fff; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-secondary { background: #6b7280; color: #fff; }
+        .btn-secondary:hover { background: #4b5563; }
+        .form-group { margin-bottom: 1.2rem; }
+        .form-group label { display: block; margin-bottom: 0.4rem; font-weight: 500; font-size: 0.9rem; }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 0.7rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+        .form-group textarea { min-height: 120px; resize: vertical; }
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.8rem; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f9fafb; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; color: #6b7280; }
+        .score-badge {
+            display: inline-block;
+            padding: 0.25rem 0.7rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .score-high { background: #d1fae5; color: #065f46; }
+        .score-mid { background: #fef3c7; color: #92400e; }
+        .score-low { background: #fee2e2; color: #991b1b; }
+        .skill-tag {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            background: #e0e7ff;
+            color: #3730a3;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin: 0.15rem;
+        }
+        .skill-tag.missing { background: #fee2e2; color: #991b1b; }
+        .hero {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+        }
+        .hero h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+        .hero p { font-size: 1.1rem; color: #ccc; margin-bottom: 2rem; }
+        .hero-actions { display: flex; gap: 1rem; justify-content: center; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+        /* --- animated logo --- */
+        nav .logo { display: flex; align-items: center; gap: 0.5rem; }
+        .logo-mark {
+            width: 28px; height: 28px; border-radius: 7px;
+            background: linear-gradient(135deg, #4fc3f7, #7c3aed);
+            display: inline-block;
+            animation: pulse 2.4s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(79,195,247,0.5); }
+            50% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(79,195,247,0); }
+        }
+        /* --- horizontal menu --- */
+        .menu { display: flex; gap: 1.2rem; align-items: center; }
+        .menu a { position: relative; padding: 0.2rem 0; }
+        .menu a::after {
+            content: ''; position: absolute; left: 0; bottom: -4px;
+            width: 0; height: 2px; background: #4fc3f7; transition: width 0.25s;
+        }
+        .menu a:hover::after { width: 100%; }
+        /* --- account dropdown --- */
+        .account { position: relative; }
+        .account-btn {
+            background: #16213e; color: #4fc3f7; border: none; cursor: pointer;
+            padding: 0.4rem 0.9rem; border-radius: 6px; font-size: 0.85rem;
+        }
+        .account-menu {
+            display: none; position: absolute; right: 0; top: 120%;
+            background: #fff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            min-width: 180px; overflow: hidden; z-index: 100;
+        }
+        .account:hover .account-menu { display: block; }
+        .account-menu a {
+            display: block; padding: 0.7rem 1rem; color: #333; font-size: 0.88rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .account-menu a:hover { background: #f5f7fa; color: #2563eb; }
+        .account-menu .who { padding: 0.7rem 1rem; background: #f9fafb; font-size: 0.8rem; color: #6b7280; }
+
+        /* --- shared helpers --- */
+        .muted { color: #6b7280; font-size: 0.9rem; }
+        .muted.small { font-size: 0.78rem; margin-top: 0.2rem; }
+        .nowrap { white-space: nowrap; }
+        .timeline { color: #9ca3af; font-size: 0.82rem; margin-top: 0.35rem; }
+        time[title] { cursor: help; }
+        .icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+        /* --- job card (Find Jobs) --- */
+        .job-card { padding: 1.6rem 1.8rem; }
+        .job-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+        .job-title { font-size: 1.2rem; color: #1a1a2e; margin-bottom: 0.45rem; }
+        .job-meta { display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; color: #6b7280; font-size: 0.9rem; }
+        .job-meta span { display: inline-flex; align-items: center; gap: 0.4rem; }
+        .job-meta .icon { color: #9ca3af; }
+        .job-head .score-badge { white-space: nowrap; }
+        .job-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem; margin-bottom: 0.45rem; }
+        .job-title-row .job-title { margin-bottom: 0; }
+        .salary-chip {
+            display: inline-flex; align-items: center; gap: 0.35rem;
+            padding: 0.15rem 0.6rem; border-radius: 999px;
+            background: #ecfdf5; color: #047857; font-size: 0.82rem; font-weight: 600;
+            white-space: nowrap; vertical-align: middle;
+        }
+        .salary-chip.salary-empty { background: #f3f4f6; color: #6b7280; font-weight: 500; }
+        .salary-chip .icon { width: 15px; height: 15px; }
+        .saved-title .salary-chip { margin-left: 0.3rem; font-size: 0.75rem; }
+
+        /* --- admin salary inputs --- */
+        .salary-inputs { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+        .form-group .salary-inputs input { flex: 1 1 110px; min-width: 0; width: auto; }
+        .form-group .salary-inputs select { width: auto; flex: 0 0 auto; }
+        .salary-dash { color: #6b7280; font-size: 0.9rem; }
+
+        .job-desc { margin: 1.1rem 0 0.2rem; }
+        .job-points { padding-left: 1.2rem; color: #374151; font-size: 0.93rem; }
+        .job-points li { margin-bottom: 0.35rem; }
+        .job-points li::marker { color: #9ca3af; }
+        .job-desc-empty { color: #9ca3af; font-style: italic; font-size: 0.9rem; }
+        .job-toggle {
+            display: inline-flex; align-items: center; gap: 0.3rem;
+            background: none; border: none; cursor: pointer; padding: 0.2rem 0;
+            color: #2563eb; font-size: 0.85rem; font-weight: 500;
+        }
+        .job-toggle .icon { transition: transform 0.2s; }
+        .job-toggle[aria-expanded="true"] .icon { transform: rotate(180deg); }
+        .job-toggle:hover .job-toggle-label { text-decoration: underline; }
+
+        .job-scores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin: 1rem 0; }
+        .job-scores div { background: #f9fafb; border-radius: 8px; padding: 0.55rem; text-align: center; }
+        .job-scores strong { display: block; font-size: 1.05rem; }
+        .job-scores span { font-size: 0.75rem; color: #6b7280; }
+        .job-skills { margin-top: 0.4rem; font-size: 0.85rem; }
+
+        .job-actions {
+            display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+            margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid #f0f1f3;
+        }
+        .job-link { color: #2563eb; font-size: 0.88rem; text-decoration: none; font-weight: 500; }
+        .job-link:hover { text-decoration: underline; }
+        .job-buttons { display: flex; align-items: center; gap: 0.6rem; }
+        .job-buttons form { margin: 0; }
+        .btn-save {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.55rem 1.1rem; border-radius: 6px; cursor: pointer;
+            background: #fff; color: #374151; border: 1px solid #d1d5db;
+            font-size: 0.9rem; font-weight: 500; transition: all 0.15s;
+        }
+        .btn-save:hover { border-color: #2563eb; color: #2563eb; }
+        .btn-save.is-saved { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+        .btn-save.is-saved .bookmark-shape { fill: currentColor; }
+        .btn-save:disabled { opacity: 0.6; cursor: wait; }
+
+        /* --- Find Jobs target-role card (same look as the filter bar) --- */
+        .role-card {
+            display: flex; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; flex-wrap: wrap;
+            background: #fff; border-radius: 10px; padding: 0.7rem 0.9rem; margin-bottom: 0.6rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        }
+        .role-card-main { display: inline-flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+        .role-card-label { font-size: 0.88rem; color: #6b7280; }
+        .role-dd summary { font-weight: 600; }
+        .role-single {
+            display: inline-flex; align-items: center; padding: 0.45rem 0.8rem; border-radius: 999px;
+            border: 1px solid #93c5fd; background: #eff6ff; color: #1d4ed8; font-size: 0.88rem; font-weight: 600;
+        }
+        .role-option input { position: absolute; opacity: 0; pointer-events: none; }
+        .role-option.is-selected { color: #1d4ed8; font-weight: 600; background: #eff6ff; }
+        .role-option:focus-within { outline: 2px solid #93c5fd; outline-offset: -2px; }
+        .role-check { width: 16px; height: 16px; fill: none; stroke: #2563eb; stroke-width: 2.4;
+                      stroke-linecap: round; stroke-linejoin: round; visibility: hidden; }
+        .role-option.is-selected .role-check { visibility: visible; }
+        .role-card-hint { font-size: 0.82rem; color: #9ca3af; }
+
+        .role-edit-link { margin-left: 0.5rem; color: #2563eb; font-weight: 600; text-decoration: none; white-space: nowrap; }
+        .role-edit-link:hover { text-decoration: underline; }
+
+        /* --- Profile: target roles + inline edit --- */
+        .role-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.3rem 0; }
+        .role-pill {
+            display: inline-flex; align-items: center; padding: 0.2rem 0.7rem; border-radius: 999px;
+            border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; font-size: 0.85rem; font-weight: 600;
+        }
+        .role-edit summary {
+            list-style: none; cursor: pointer; display: inline-block; margin-top: 0.2rem;
+            color: #2563eb; font-size: 0.85rem; font-weight: 600;
+        }
+        .role-edit summary::-webkit-details-marker { display: none; }
+        .role-edit summary:hover { text-decoration: underline; }
+        .role-edit[open] summary { display: none; }
+        .role-edit-form { display: flex; flex-direction: column; gap: 0.45rem; max-width: 520px; margin-top: 0.4rem; }
+        .role-edit-form input[type=text] {
+            padding: 0.55rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.92rem;
+        }
+        .role-edit-form input[type=text]:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }
+        .role-edit-actions { display: flex; gap: 0.5rem; }
+        .role-edit-actions .btn { padding: 0.4rem 1rem; font-size: 0.88rem; }
+
+        /* --- Admin ranking: which target role matched --- */
+        .best-role { margin-top: 0.35rem; font-size: 0.88rem; color: #374151; display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; }
+        .best-role-tag { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 999px; padding: 0.1rem 0.6rem; font-weight: 600; font-size: 0.82rem; }
+
+        /* --- Find Jobs filter bar --- */
+        .filter-bar {
+            display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; flex-wrap: wrap;
+            background: #fff; border-radius: 10px; padding: 0.7rem 0.9rem; margin-bottom: 0.8rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        }
+        .filter-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .filter-dd { position: relative; }
+        .filter-dd summary {
+            list-style: none; cursor: pointer; user-select: none;
+            display: inline-flex; align-items: center; gap: 0.35rem;
+            padding: 0.45rem 0.8rem; border: 1px solid #d1d5db; border-radius: 999px;
+            font-size: 0.88rem; color: #374151; background: #fff;
+        }
+        .filter-dd summary::-webkit-details-marker { display: none; }
+        .filter-dd summary:hover { border-color: #2563eb; color: #2563eb; }
+        .filter-dd summary.is-active { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; }
+        .filter-dd summary .icon { width: 14px; height: 14px; transition: transform 0.2s; }
+        .filter-dd[open] summary .icon { transform: rotate(180deg); }
+        .filter-count {
+            background: #2563eb; color: #fff; border-radius: 999px; font-size: 0.7rem;
+            min-width: 1.1rem; padding: 0 0.3rem; text-align: center; line-height: 1.1rem;
+        }
+        .filter-panel {
+            position: absolute; top: calc(100% + 6px); left: 0; z-index: 50; min-width: 220px;
+            background: #fff; border-radius: 8px; padding: 0.35rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.14); border: 1px solid #eef0f3;
+        }
+        .filter-option {
+            display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0.6rem;
+            border-radius: 6px; cursor: pointer; font-size: 0.9rem; color: #374151;
+        }
+        .filter-option:hover { background: #f5f7fa; }
+        .filter-option input { width: auto; accent-color: #2563eb; }
+        .filter-option span:first-of-type { flex: 1; }
+        .filter-num { color: #9ca3af; font-size: 0.8rem; }
+        .sort-select { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; color: #6b7280; }
+        .sort-select select {
+            padding: 0.4rem 0.6rem; border: 1px solid #d1d5db; border-radius: 6px;
+            font-size: 0.88rem; color: #374151; background: #fff;
+        }
+        .filter-summary {
+            display: flex; align-items: center; flex-wrap: wrap; gap: 0.45rem;
+            margin: 0 0.2rem 1rem; font-size: 0.88rem; color: #6b7280;
+        }
+        .filter-summary > span { margin-right: 0.3rem; }
+        .filter-chip {
+            display: inline-flex; align-items: center; gap: 0.3rem; text-decoration: none;
+            padding: 0.2rem 0.65rem; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 0.82rem;
+        }
+        .filter-chip:hover { background: #dbeafe; }
+        .filter-chip span { font-size: 1rem; line-height: 1; }
+        .filter-clear { color: #6b7280; font-size: 0.82rem; margin-left: 0.2rem; }
+
+        /* --- toast message --- */
+        .toast {
+            position: fixed; left: 50%; bottom: 1.5rem; transform: translate(-50%, 1rem);
+            background: #1a1a2e; color: #fff; padding: 0.7rem 1.2rem; border-radius: 8px;
+            font-size: 0.9rem; opacity: 0; pointer-events: none; transition: all 0.25s; z-index: 200;
+        }
+        .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+        /* --- saved jobs (Profile) --- */
+        .count-pill {
+            display: inline-block; min-width: 1.6rem; padding: 0.05rem 0.5rem; margin-left: 0.3rem;
+            border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 0.8rem; text-align: center;
+            vertical-align: middle;
+        }
+        .saved-list { list-style: none; }
+        .saved-item {
+            display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+            padding: 0.9rem 0; border-bottom: 1px solid #f0f1f3;
+        }
+        .saved-item:last-child { border-bottom: none; }
+        .saved-title { font-weight: 600; color: #1a1a2e; margin-bottom: 0.25rem; }
+        .closed-pill {
+            margin-left: 0.4rem; padding: 0.1rem 0.5rem; border-radius: 999px;
+            background: #f3f4f6; color: #6b7280; font-size: 0.75rem; font-weight: 500;
+        }
+
+        @media (max-width: 640px) {
+            .job-head, .job-actions, .saved-item { flex-direction: column; align-items: flex-start; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .filter-panel { position: fixed; left: 16px; right: 16px; top: auto; }
+            .job-scores { grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/" class="logo"><span class="logo-mark"></span> Resume-JD Portal</a>
+        <div class="nav-links">
+            {% if session.get('user_id') %}
+                <div class="menu">
+                    {% if session.get('role') == 'admin' %}
+                        <a href="{{ url_for('admin.admin_dashboard') }}">Dashboard</a>
+                        <a href="{{ url_for('admin.list_jds') }}">Job Descriptions</a>
+                        <a href="{{ url_for('admin.list_candidates') }}">Candidates</a>
+                        <a href="{{ url_for('admin.models') }}">Models</a>
+                        <a href="{{ url_for('admin.users') }}">Users &amp; Roles</a>
+                    {% else %}
+                        <a href="{{ url_for('candidate.candidate_dashboard') }}">Dashboard</a>
+                        <a href="{{ url_for('candidate.match_jobs') }}">Find Jobs</a>
+                        {# apply_enabled comes from the candidate blueprint's context processor (MULTI_TENANT only) #}
+                        {% if apply_enabled %}<a href="{{ url_for('candidate.application_tracker') }}">My Applications</a>{% endif %}
+                        <a href="{{ url_for('candidate.profile') }}">Profile</a>
+                    {% endif %}
+                </div>
+                <div class="account">
+                    <button class="account-btn">{{ session.get('name') }} ▾</button>
+                    <div class="account-menu">
+                        <div class="who">{{ session.get('name') }}<br>Role: {{ session.get('role') }}</div>
+                        {% if session.get('role') == 'admin' %}
+                            <a href="{{ url_for('admin.models') }}">Model: {{ session.get('selected_model') or 'default' }}</a>
+                        {% endif %}
+                        <a href="{{ url_for('public.logout') }}">Logout</a>
+                    </div>
+                </div>
+            {% else %}
+                <div class="menu">
+                    <a href="{{ url_for('public.login') }}">Login</a>
+                    <a href="{{ url_for('public.register') }}">Register</a>
+                </div>
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+    // Show every <time data-local="..."> in the viewer's own time zone.
+    // The server writes UTC; the browser knows the local zone.
+    (function () {
+        var full = { dateStyle: 'medium', timeStyle: 'short' };
+        document.querySelectorAll('time[data-local]').forEach(function (el) {
+            var d = new Date(el.getAttribute('datetime'));
+            if (isNaN(d)) return;
+            var mode = el.getAttribute('data-local');
+            el.title = d.toLocaleString(undefined, full);
+            if (mode === 'datetime') el.textContent = d.toLocaleString(undefined, full);
+            if (mode === 'date') el.textContent = d.toLocaleDateString(undefined, { dateStyle: 'medium' });
+            // mode 'ago' keeps its "3 days ago" text; the tooltip shows the exact time.
+        });
+    })();
+    </script>
+</body>
+</html>
